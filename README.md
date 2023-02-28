@@ -5,7 +5,7 @@
 We use [EDGAR-DOC-PARSER](https://kamilkrukowski.github.io/EDGAR-DOC-PARSER) to create a dataset.
 It is currently available on the PyPi Test Server
 ```
-  pip install -i https://test.pypi.org/simple/ EDGAR-Document-Parser
+  pip install -i https://test.pypi.org/simple/ edgar-doc-parser
 ```
 
 
