@@ -1,51 +1,37 @@
 import torch.nn as nn
-from torch.utils.data import Dataset
+import numpy as np
 import torch
 
-class Dataset_8K(Dataset):
+N_EPOCHS = 50
 
-    def __init__(self, split='train'):
+class BOW(torch.nn.Module):
 
-        self.x = []
-        self.y = []
+    def __init__(self, input_size: int):
+        super(BOW, self).__init__()
 
-        if split == 'train':
-            fpath = 'train.csv'
-            self._load_file_(fpath);
+        INPUT_SIZE = input_size
 
-        if split == 'test':
-            fpath = 'test.csv'
-            self._load_file_(fpath);
+        self.ffn = torch.nn.Sequential(
+            nn.Linear(INPUT_SIZE, 4096),
+            nn.ReLU(),
+            nn.Linear(4096, 3),
+            nn.Softmax(dim=1)
+        )
 
-    def _load_file_(self, fpath):
-        with open(fpath, 'r') as f:
-            _ = f.readline() # Header to delete
-            for line in f.readlines():
-                curr_x, curr_y, *r = tuple(line.split(','))
-                self.x.append(curr_x)
-                self.y.append(int(curr_y))
+    def forward(self, x):
+        return self.ffn(x)
 
-    def __len__(self):
-        return len(self.y)
-
-    def __getitem__(self, idx):
-        return self.x[idx], self.y[idx]
-
-data = Dataset_8K()
-
-import numpy as np
-from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.model_selection import train_test_split
+
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.pipeline import Pipeline
-import re
-from tqdm import tqdm
-from time import time
 
 # # vectorize
 df = pd.read_csv('train.csv') # load cleaned data
+
 LM_dict = pd.read_csv('LM_dict.csv',keep_default_na=False)
 #create vocab from LM dict
 vocab = dict()
@@ -56,15 +42,33 @@ pipe = Pipeline([('count', CountVectorizer(vocabulary=vocab)),
                  ('tfid', TfidfTransformer())]).fit(df['text'])# tfidf on 86000 vocab
 X = pipe.transform(df['text'])
 sort_index = np.argsort(X.toarray().sum(axis = 0))# ascending
-new_vocab = pipe['count'].get_feature_names_out()[sort_index[-500:]]#take top 500 vocab
+new_vocab = pipe['count'].get_feature_names_out()[sort_index[-2000:]]#take top 500 vocab
 
-#############################################
-# # training with new vocab list
-vectorizer = TfidfVectorizer()
-X_train, X_test, y_train, y_test = train_test_split(df['text'], df['label'], test_size=0.25, random_state=42)
-X_train = vectorizer.fit_transform(X_train)
-X_test = vectorizer.transform(X_test)
-from sklearn.linear_model import LogisticRegression
-clf = LogisticRegression(random_state=1).fit(X_train, y_train)
-print("test score: ", clf.score(X_test, y_test))
-print("train score: ",clf.score(X_train, y_train))
+vectorizer = TfidfVectorizer() #pass new_vocab if desired
+x_train, x_test, y_train, y_test = train_test_split(df['text'], df['label'], test_size=0.25, random_state=42)
+x_train = vectorizer.fit_transform(x_train)
+x_test = vectorizer.transform(x_test)
+
+x_train = torch.Tensor(x_train.todense())
+y_train = torch.Tensor(np.array(y_train)).long()
+x_test = torch.Tensor(x_test.todense())
+y_test = torch.Tensor(np.array(y_test)).long()
+
+model = BOW(x_train.shape[1])
+optim = torch.optim.Adam(model.parameters(), weight_decay=2e-3)
+
+def accuracy(logits, y):
+    y_hat = torch.argmax(logits, dim=1)
+    return (sum(y_hat==y)/len(y)).detach().item()
+
+for epoch in range(N_EPOCHS):
+    y_hat = model(x_train)
+
+    loss = torch.nn.functional.cross_entropy(y_hat, y_train)
+
+    optim.zero_grad()
+    loss.backward()
+    optim.step()
+    print(f"Loss: {loss.detach().item():.2f}, \
+            Train Acc: {accuracy(y_hat, y_train)*100:.2f} \
+            Test Acc: {accuracy(model(x_test), y_test)*100:.2f}")
