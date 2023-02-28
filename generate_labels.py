@@ -64,4 +64,4 @@ data = pd.read_csv('8k_data.csv')
 data['label'] = data.apply(lambda row: label_performance(
             row['TIKR'], comp_his, row['Date'], 7, 0.01), axis=1)
 
-pd.save_csv('8k_data_labels.csv')
+data.to_csv('8k_data_labels.csv')
