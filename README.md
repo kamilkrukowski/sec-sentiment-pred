@@ -10,7 +10,8 @@ It is currently available on the PyPi Test Server
 
 To create conda environment:
 ```
-conda create -n sectagging -c conda-forge -c anaconda python=3.10 pytorch scipy numpy selenium=4.5.0 pyyaml chardet requests lxml scikit-learn matplotlib pytorch
+conda create -n sectagging -c conda-forge -c anaconda python=3.10 pytorch scipy numpy selenium=4.5.0 pyyaml chardet requests lxml scikit-learn pandas pytorch
 conda activate sectagging
 pip install -i https://test.pypi.org/simple/ edgar-doc-parser
+pip install secedgar==0.4.0
 ```
