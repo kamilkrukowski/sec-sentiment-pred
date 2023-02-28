@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 import edgar.html as html
 import edgar
 
-DATA_DIR = '8kdata'
+DATA_DIR = 'data'
 
 tikrs = ['aapl', 'msft', 'amzn', 'tsla', 'googl', 'goog',  'unh', 'jnj', 'cvx',
          'jpm', 'hd', 'v', 'pg']
