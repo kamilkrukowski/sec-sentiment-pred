@@ -12,7 +12,7 @@ metadata = edgar.Metadata(data_dir=DATA_DIR)
 
 #  Prepare file for constant offloading
 fout = open('8k_data.csv', 'w');
-fout.write(",TIKR,FORM_TYPE,submission,span_texts,Date\n")
+fout.write(",tikr,FORM_TYPE,submission,text,Date\n")
 frowidx = 0
 
 

@@ -7,9 +7,10 @@ convert_label_to_string = False
 f = '8k_data_labels.csv'
 frame = pd.read_csv(f)
 
-x = np.array(frame.span_texts)
+x = np.array(frame.text)
 y = np.array(frame.label)
 
+print(len(y))
 valid_idx = [i for i in list(range(len(y))) if y[i] != -1] 
 x = x[valid_idx];
 y = y[valid_idx];
@@ -36,9 +37,11 @@ x_test = x[test_idxs]
 y_test = y[test_idxs]
 
 with open('train.csv', 'w') as f:
+    f.write('text,label\n')
     for xi, yi in zip(x_train, y_train): 
-        f.write(f"{xi}, {yi}\n")
+        f.write(f"{xi},{yi}\n")
 
 with open('test.csv', 'w') as f:
+    f.write('text,label\n')
     for xi, yi in zip(x_test, y_test): 
-        f.write(f"{xi}, {yi}\n")
+        f.write(f"{xi},{yi}\n")

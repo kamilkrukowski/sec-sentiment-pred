@@ -14,12 +14,6 @@ def load_data(tikrs, moving_period):
     return TIKR_dict
 
 
-def clean_mine(file_dir, moving_avg_d):
-    df = pd.read_csv(file_dir)
-    df['Date'] = df['Date'].apply(lambda x: datetime.strptime(str(x).replace('/', ''), '%Y%m%d'))
-    df['Close/Last'] = df['Close/Last'].replace('[\$,]', '', regex=True).astype(float)
-    df['moving_avg'] = df['Close/Last'].rolling(window=moving_avg_d).mean()
-
 def clean_df(file_dir, moving_avg_d):
     df = pd.read_csv(file_dir)
     df['Date'] = df['Date'].apply(lambda x: datetime.strptime(str(x).replace('/', ''), '%m%d%Y'))
@@ -55,13 +49,11 @@ def label_performance(tikr, ref_df, date, days_period, threshold=0):
         return -1 # this means it was unsuccessful and there was an error processing
 
 
-tikrs = tikrs[:1]
-
 TIKRS_dat = load_data(tikrs, 7)
 comp_his = clean_df('historical/comp.csv', 7)
 
 data = pd.read_csv('8k_data.csv')
 data['label'] = data.apply(lambda row: label_performance(
-            row['TIKR'], comp_his, row['Date'], 7, 0.01), axis=1)
+            row['tikr'], comp_his, row['Date'], 7, 0.01), axis=1)
 
 data.to_csv('8k_data_labels.csv')
