@@ -1,6 +1,4 @@
-import re
 import sys
-from bs4 import BeautifulSoup
 
 import edgar.html as html
 import edgar
