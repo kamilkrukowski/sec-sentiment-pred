@@ -1,5 +1,7 @@
+from tqdm.auto import tqdm
+
 import edgar
-from .parser_8k import Parser_8K
+from parser_8k import Parser_8K
 
 DATA_DIR = 'data'
 # Whether to include type of 8-K document in embedding.
@@ -23,7 +25,8 @@ dataloader = edgar.DataLoader(tikrs, document_type='8-K', data_dir=DATA_DIR,
 parser = Parser_8K()
 
 data = []
-for idx, tikr, sub, text in enumerate(dataloader):
+for idx, (tikr, sub, text) in enumerate(tqdm(dataloader, desc="Generating",
+                                             leave=False)):
 
     attrs = dataloader.metadata._get_submission(tikr, sub)['attrs']
     # Remove submissions without date-time
