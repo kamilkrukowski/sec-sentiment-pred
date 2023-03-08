@@ -103,7 +103,7 @@ TIKRS_dat = load_historical_data('TIKR_DATA.pickle')
 comp_his = load_df('^GSPC', 7) # reference dataframe
 
 
-data = pd.read_csv('8k_dataset.csv')
+data = pd.read_csv('8k_dataset.csv', sep = '\t')
 data['label'] = data.apply(lambda row: label_performance(
             row['tikr'], comp_his, row['date'], 7, 0.01), axis=1)
 

@@ -7,12 +7,13 @@ DATA_DIR = 'data'
 # Whether to include type of 8-K document in embedding.
 USE_DOC_SUBTYPES = True
 
-tikrs = ['aapl', 'msft', 'amzn', 'tsla', 'googl', 'goog',  'unh', 'jnj', 'cvx',
-         'jpm', 'hd', 'v', 'pg']
+with open('0.txt') as f: # tikr list right here
+    l = f.read()
+tikrs = [i.split(',')[0] for i in l.split('\n')]
 
 #  Prepare file for constant offloading
-fout = open('8k_data.csv', 'w')
-fout.write(",tikr,FORM_TYPE,submission,text,Date\n")
+fout = open('8k_data.csv', 'w', encoding='utf-8')
+fout.write("\ttikr\tFORM_TYPEs\tubmission\ttext\tDate\n")
 frowidx = 0
 
 config = edgar.DataLoaderConfig(
@@ -48,7 +49,7 @@ for idx, (tikr, sub, text) in enumerate(tqdm(dataloader, desc="Generating",
         doc_type = f'8-K-{subtype}'
 
     # Write to file
-    fout.write(f"{frowidx},{tikr},{doc_type},{sub},{text},{date}\n")
+    fout.write(f"{frowidx}\t{tikr}\t{doc_type}\t{sub}\t{text}\t{date}\n")
     frowidx += 1
 
 #  Close data pipe file
