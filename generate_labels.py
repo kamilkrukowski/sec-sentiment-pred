@@ -56,7 +56,7 @@ def label_performance(tikr, ref_df, date, days_period, threshold=0):
             percent more or less to label underperformance or overperformance
     '''
     try:
-        date = datetime.strptime(str(date), "%Y%m%d.%f")
+        date = datetime.strptime(str(date), "%Y%m%d")
     except:
         return -1  # date formatting isue
     # gets n-day moving average from day before
