@@ -36,10 +36,10 @@ y_train = y[train_idxs]
 x_test = x[test_idxs]
 y_test = y[test_idxs]
 
-with open('train\ttsv', 'w') as f:
+with open('train.tsv', 'w') as f:
     f.write('text\tlabel\n')
     for xi, yi in zip(x_train, y_train):
-        f.write(f"{xi},{yi}\n")
+        f.write(f"{xi}\t{yi}\n")
 
 with open('test.tsv', 'w') as f:
     f.write('text\tlabel\n')
