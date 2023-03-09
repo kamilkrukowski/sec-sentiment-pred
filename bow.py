@@ -6,9 +6,11 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 
 # # vectorize
-df = pd.read_csv('train.csv') # load cleaned data
+dftrain = pd.read_csv('train.tsv', sep='\t') # load cleaned data
+dftest = pd.read_csv('train.tsv', sep='\t') # load cleaned data
 vectorizer = TfidfVectorizer()
-X_train, X_test, y_train, y_test = train_test_split(df['text'], df['label'], test_size=0.25, random_state=42)
+X_train, y_train = dftrain['text'], dftrain['label']
+X_test, y_test = dftest['text'], dftest['label']
 X_train = vectorizer.fit_transform(X_train)
 X_test = vectorizer.transform(X_test)
 
