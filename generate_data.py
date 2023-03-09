@@ -7,7 +7,7 @@ DATA_DIR = 'data'
 # Whether to include type of 8-K document in embedding.
 USE_DOC_SUBTYPES = True
 
-with open('0.txt') as f: # tikr list right here
+with open('0.txt') as f:  # tikr list right here
     l = f.read()
 tikrs = [i.split(',')[0] for i in l.split('\n')]
 
