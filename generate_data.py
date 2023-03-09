@@ -12,7 +12,7 @@ with open('0.txt') as f:  # tikr list right here
 tikrs = [i.split(',')[0] for i in l.split('\n')]
 
 #  Prepare file for constant offloading
-fout = open('8k_data.csv', 'w', encoding='utf-8')
+fout = open('8k_data.tsv', 'w', encoding='utf-8')
 fout.write("\ttikr\tFORM_TYPEs\tubmission\ttext\tDate\n")
 frowidx = 0
 

@@ -4,7 +4,7 @@ import re
 
 convert_label_to_string = False
 
-f = '8k_data_labels.csv'
+f = '8k_data_labels.tsv'
 frame = pd.read_csv(f, delimiter='\t')
 
 x = np.array(frame.text)
@@ -36,12 +36,12 @@ y_train = y[train_idxs]
 x_test = x[test_idxs]
 y_test = y[test_idxs]
 
-with open('train.csv', 'w') as f:
-    f.write('text,label\n')
+with open('train\ttsv', 'w') as f:
+    f.write('text\tlabel\n')
     for xi, yi in zip(x_train, y_train):
         f.write(f"{xi},{yi}\n")
 
-with open('test.csv', 'w') as f:
-    f.write('text,label\n')
+with open('test.tsv', 'w') as f:
+    f.write('text\tlabel\n')
     for xi, yi in zip(x_test, y_test):
-        f.write(f"{xi},{yi}\n")
+        f.write(f"{xi}\t{yi}\n")
