@@ -296,7 +296,8 @@ def get_strategy_annual_return(
         company_list: List[str],
         end_date: datetime,
         starting_balance: int = 1e7,
-        start_date: datetime = '20000101') -> float:
+        start_date: datetime = '20000101' ,
+        silence = True) -> float:
     """
     Calculate annual return over time period.
     
@@ -334,7 +335,9 @@ def get_strategy_annual_return(
         # At each date, rebalance current networth to be distributed
         # percentage-wise between companies in portfolio_allocations
         s.rebalance(percentage= portfolio_allocation, date = date)
-        s.print_portfolio(date)
-    s.transaction_summary()
+        if not silence:
+            s.print_portfolio(date)
+    if not silence:
+        s.transaction_summary()
 
     return s.active_balance(end_date)/starting_balance
