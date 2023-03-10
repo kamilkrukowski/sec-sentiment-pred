@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List, Any
 
 
 import numpy as np
@@ -21,28 +22,30 @@ with open('train.tsv') as f:
         dates.append(datetime.strptime(date, '%Y%m%d'))
         labels.append(int(label))
 
-def chronosort(dates, arr, start_date: datetime):
+def chronosort(dates: List[datetime], arr: List[Any], start_date: datetime):
+    """Sort dates and arr in-place by dates, remove all
+    entries before start_date."""
     dates = np.array(dates)
-    labels = np.array(labels)
+    arr = np.array(arr)
 
     sort_idxs = np.argsort(dates)
-    labels = labels[sort_idxs]
+    arr = arr[sort_idxs]
     dates = dates[sort_idxs]
 
     dates = list(dates)
-    dates.insert(0, START_DATE)
-    labels = list(labels)
-    labels.insert(0, -999)
+    dates.insert(0, start_date)
+    arr = list(arr)
+    arr.insert(0, -999)
 
     sort_idxs = list(np.argsort(dates))
     found_idx = sort_idxs.index(0) + 1  # We exclude our dummy entry
 
     dates = np.array(dates)
-    labels = np.array(labels)
+    arr = np.array(arr)
     dates = dates[sort_idxs][found_idx:]
-    labels = labels[sort_idxs][found_idx:]
+    arr = arr[sort_idxs][found_idx:]
 
-    return dates, labels
+    return dates, arr
 
 
 dates, labels = chronosort(dates, labels, START_DATE)
