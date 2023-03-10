@@ -111,7 +111,7 @@ class StockSimulation:
             "price": price,
             "amount": stock_cost ,
             "transaction_cost": 0,
-            "balance": self.active_balance(date)
+            "balance": self.get_net_worth(date)
         })
 
     def sell(self, tikr, date, allocated_money):
@@ -167,7 +167,7 @@ class StockSimulation:
             "price": price,
             "amount": stock_cost ,
             "transaction_cost": stock_cost * self.transaction_cost,
-            "balance": self.active_balance(date)
+            "balance": self.get_net_worth(date)
         })
 
     # #TODO
@@ -194,7 +194,7 @@ class StockSimulation:
         buy = []
         
         
-        true_balance = self.active_balance(date) * 0.99
+        true_balance = self.get_net_worth(date) * 0.99
         for tikr, percent in zip(self.tikrs, percentage):
             price = self.get_price(tikr, date)
             expected_value = true_balance * percent
@@ -212,7 +212,7 @@ class StockSimulation:
 
 
 
-    def active_balance(self, date):
+    def get_net_worth(self, date):
         """
         Calculates the active balance of the portfolio on a given date, including
         cash and holdings of all active stocks in the portfolio.
@@ -249,7 +249,7 @@ class StockSimulation:
         -------
         None
         """
-        balance = self.active_balance(date)
+        balance = self.get_net_worth(date)
         print("portfolio_allocation on", date)
         for tikr in self.tikrs:
             price = self.get_price(tikr, date)
@@ -347,5 +347,5 @@ def get_strategy_annual_return(
     n = delta_days / 365.25  # assuming a leap year every 4 years   
 
 
-    return (s.active_balance(end_date)/starting_balance) \
+    return (s.get_net_worth(end_date)/starting_balance) \
             ** ( 1 / n)  - 1
