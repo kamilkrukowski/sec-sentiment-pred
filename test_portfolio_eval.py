@@ -23,4 +23,4 @@ starting_balance = 1000
 strategy = {"20001210": [0.5,0.5], "20011210": [0.3,0.7],"20100112": [0,0] }
 
 perc_change = portfolio_eval.get_strategy_annual_return(strategy,company_list,end_date,starting_balance, start_date)
-print("percent change: " , perc_change)
+print("Annualized Rate of Return: " , round(perc_change, 3) )

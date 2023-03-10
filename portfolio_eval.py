@@ -340,4 +340,12 @@ def get_strategy_annual_return(
     if not silence:
         s.transaction_summary()
 
-    return s.active_balance(end_date)/starting_balance
+    # Calculate the number of days between the start and end dates
+    delta_days = (end_date - start_date).days
+
+    # Calculate the fractional number of years using the total number of days
+    n = delta_days / 365.25  # assuming a leap year every 4 years   
+
+
+    return (s.active_balance(end_date)/starting_balance) \
+            ** ( 1 / n)  - 1
