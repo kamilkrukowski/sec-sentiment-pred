@@ -26,6 +26,25 @@ class StockSimulation:
         None
         """
 
+
+        """
+        Initialize a StockSimulation instance.
+
+        Parameters
+        ----------
+        cash : float
+            The initial amount of cash to invest, by default 1000000
+        tikrs : List[str]
+            The list of stock symbols to invest in, by default ['aapl', 'msft']
+        historical_data : Dict[str, pd.DataFrame]
+            A dictionary of historical stock data for each stock symbol in `tikrs`.
+            Each key is a stock symbol, and each value is a pandas DataFrame containing the
+            historical data.
+        Returns
+        -------
+        None
+        """
+
         self.cash = cash
         self.tikrs = tikrs
         self.portfolio = {}
@@ -53,6 +72,22 @@ class StockSimulation:
             The opening price of the stock on the given date.
         """
 
+        """
+        Get the opening price of a stock on a given date.
+
+        Parameters
+        ----------
+        tikr : str
+            The stock symbol to get the price for.
+        date : str or datetime
+            The date to get the price for. If str, must be in the format 'YYYYMMDD'.
+
+        Returns
+        -------
+        float
+            The opening price of the stock on the given date.
+        """
+
         start = date
         if type(start) is str:
             start = datetime.strptime(start, '%Y%m%d')
@@ -64,6 +99,22 @@ class StockSimulation:
 
 
     def buy(self, tikr, date, allocated_money):
+        """
+        Buy shares of a stock.
+
+        Parameters
+        ----------
+        tikr : str
+            The stock symbol to buy.
+        date : str or datetime
+            The date to buy the stock. If str, must be in the format 'YYYYMMDD'.
+        allocated_money : float
+            The amount of money to allocate to the stock.
+
+        Returns
+        -------
+        None
+        """
         """
         Buy shares of a stock.
 
@@ -130,6 +181,22 @@ class StockSimulation:
         -------
         None
         """
+        """
+        Sell shares of a stock.
+
+        Parameters
+        ----------
+        tikr : str
+            The stock symbol to sell.
+        date : str or datetime
+            The date to sell the stock. If str, must be in the format 'YYYYMMDD'.
+        allocated_money : float
+            The amount of money to allocate to the stock.
+
+        Returns
+        -------
+        None
+        """
         # check if there are enough shares to sell
         if tikr not in self.portfolio:
             print("No shares of {} in portfolio".format(tikr))
@@ -168,6 +235,27 @@ class StockSimulation:
             "transaction_cost": stock_cost * self.transaction_cost,
             "net_worth": self.get_net_worth(date)
         })
+
+    # #TODO
+    # def get_next_trading_date(self,tikr, date):
+        
+    #     return None
+
+    def rebalance(self, percentage, date):
+        """
+        Rebalance the portfolio according to a target allocation.
+
+        Parameters
+        ----------
+        percentage : List[float]
+            The target allocation percentages for each stock in the portfolio.
+        date : str or datetime
+            The date to rebalance the portfolio. If str, must be in the format 'YYYYMMDD'.
+
+        Returns
+        -------
+        None
+        """
 
     # #TODO
     # def get_next_trading_date(self,tikr, date):
@@ -264,6 +352,15 @@ class StockSimulation:
             
 
     def transaction_summary(self):
+        """
+        Prints a summary of all transactions made in the portfolio, including
+        the date, type, number of shares, stock ticker, price per share,
+        transaction amount, transaction cost, and remaining balance.
+        
+        Returns
+        -------
+        None
+        """
         """
         Prints a summary of all transactions made in the portfolio, including
         the date, type, number of shares, stock ticker, price per share,
