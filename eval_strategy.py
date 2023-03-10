@@ -9,7 +9,8 @@ import strategies
 from portfolio_eval import get_strategy_annual_return
 
 
-START_DATE = datetime.strptime('20000101', '%Y%m%d')
+START_DATE = '20000101'
+END_DATE = '20201231'
 
 strategy = strategies.baseline
 
@@ -22,8 +23,9 @@ with open('train.tsv') as f:
         dates.append(datetime.strptime(date, '%Y%m%d'))
         labels.append(int(label))
 
+
 def chronosort(dates: List[datetime], arr: List[Any],
-               start_date: datetime, end_date: datetime):
+               start_date: datetime, end_date: datetime = None):
     """Sort dates and arr in-place by dates, remove all
     entries before start_date or after end_date"""
 
@@ -44,7 +46,7 @@ def chronosort(dates: List[datetime], arr: List[Any],
     dates.insert(0, start_date)
     arr = list(arr)
     arr.insert(0, -999)
-    
+
     if end_date is not None:
         dates.insert(1, end_date)
         arr.insert(1, -999)
@@ -70,4 +72,5 @@ company_list = open('tikrs.txt', 'r').read().strip().split('\n')
 
 allocations = strategy(labels, company_list)
 
-print(get_strategy_annual_return(allocations, company_list, end_date='20220101'))
+print(get_strategy_annual_return(allocations, company_list,
+                                 end_date=END_DATE, start_date=START_DATE))
