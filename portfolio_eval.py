@@ -7,6 +7,25 @@ import pickle
     downstream testing."""
 class StockSimulation:
     def __init__(self, historical_data, cash=1000000,  tikrs = ['aapl','msft']):
+
+        """
+        Initialize a StockSimulation instance.
+
+        Parameters
+        ----------
+        cash : float
+            The initial amount of cash to invest, by default 1000000
+        tikrs : List[str]
+            The list of stock symbols to invest in, by default ['aapl', 'msft']
+        historical_data : Dict[str, pd.DataFrame]
+            A dictionary of historical stock data for each stock symbol in `tikrs`.
+            Each key is a stock symbol, and each value is a pandas DataFrame containing the
+            historical data.
+        Returns
+        -------
+        None
+        """
+
         self.cash = cash
         self.tikrs = tikrs
         self.portfolio = {}
@@ -18,6 +37,22 @@ class StockSimulation:
         self.historical_data = historical_data
         
     def get_price(self, tikr, date):
+        """
+        Get the opening price of a stock on a given date.
+
+        Parameters
+        ----------
+        tikr : str
+            The stock symbol to get the price for.
+        date : str or datetime
+            The date to get the price for. If str, must be in the format 'YYYYMMDD'.
+
+        Returns
+        -------
+        float
+            The opening price of the stock on the given date.
+        """
+
         start = date
         if type(start) is str:
             start = datetime.strptime(start, '%Y%m%d')
@@ -29,6 +64,22 @@ class StockSimulation:
 
 
     def buy(self, tikr, date, allocated_money):
+        """
+        Buy shares of a stock.
+
+        Parameters
+        ----------
+        tikr : str
+            The stock symbol to buy.
+        date : str or datetime
+            The date to buy the stock. If str, must be in the format 'YYYYMMDD'.
+        allocated_money : float
+            The amount of money to allocate to the stock.
+
+        Returns
+        -------
+        None
+        """
         # check if there is enough cash to buy
         if self.cash < allocated_money:
             print("Not enough cash to buy")
@@ -64,6 +115,22 @@ class StockSimulation:
         })
 
     def sell(self, tikr, date, allocated_money):
+        """
+        Sell shares of a stock.
+
+        Parameters
+        ----------
+        tikr : str
+            The stock symbol to sell.
+        date : str or datetime
+            The date to sell the stock. If str, must be in the format 'YYYYMMDD'.
+        allocated_money : float
+            The amount of money to allocate to the stock.
+
+        Returns
+        -------
+        None
+        """
         # check if there are enough shares to sell
         if tikr not in self.portfolio:
             print("No shares of {} in portfolio".format(tikr))
@@ -103,11 +170,27 @@ class StockSimulation:
             "balance": self.active_balance(date)
         })
 
-    #TODO
-    def get_next_trading_date(self,tikr, date):
-        return None
+    # #TODO
+    # def get_next_trading_date(self,tikr, date):
+        
+    #     return None
 
-    def rebalance(self,percentage,date):
+    def rebalance(self, percentage, date):
+        """
+        Rebalance the portfolio according to a target allocation.
+
+        Parameters
+        ----------
+        percentage : List[float]
+            The target allocation percentages for each stock in the portfolio.
+        date : str or datetime
+            The date to rebalance the portfolio. If str, must be in the format 'YYYYMMDD'.
+
+        Returns
+        -------
+        None
+        """
+
         buy = []
         
         
@@ -130,6 +213,21 @@ class StockSimulation:
 
 
     def active_balance(self, date):
+        """
+        Calculates the active balance of the portfolio on a given date, including
+        cash and holdings of all active stocks in the portfolio.
+        
+        Parameters
+        ----------
+        date : datetime.datetime or str
+            The date on which to calculate the active balance of the portfolio.
+            If str, the accepted format is "year_month_day".
+            
+        Returns
+        -------
+        balance : float
+            The active balance of the portfolio on the given date.
+        """
         balance = self.cash
         for tikr in self.active_log:
             price = self.get_price(tikr, date)
@@ -137,6 +235,20 @@ class StockSimulation:
         return balance
     
     def print_portfolio(self, date):
+        """
+        Prints the percentage of the portfolio holdings that are invested in each
+        active stock in the portfolio, based on the active balance on the given date.
+        
+        Parameters
+        ----------
+        date : datetime.datetime or str
+            The date on which to calculate the active balance of the portfolio.
+            If str, the accepted format is "year_month_day".
+            
+        Returns
+        -------
+        None
+        """
         balance = self.active_balance(date)
         print("portfolio_allocation on", date)
         for tikr in self.tikrs:
@@ -149,6 +261,15 @@ class StockSimulation:
             
 
     def transaction_summary(self):
+        """
+        Prints a summary of all transactions made in the portfolio, including
+        the date, type, number of shares, stock ticker, price per share,
+        transaction amount, transaction cost, and remaining balance.
+        
+        Returns
+        -------
+        None
+        """
         for txn in self.transaction_log:
             print("{} {} {} shares of {} at ${:.2f} for ${:.2f} (transaction cost: ${:.2f}), balance: ${:.2f}".format(
                 txn['date'], txn['type'], txn['shares'], txn['tikr'], txn['price'], txn['amount'], txn['transaction_cost'], txn['balance']))
