@@ -138,11 +138,14 @@ class StockSimulation:
     
     def print_portfolio(self, date):
         balance = self.active_balance(date)
+        print("portfolio_allocation on", date)
         for tikr in self.tikrs:
             price = self.get_price(tikr, date)
             tikr_holding = self.portfolio[tikr] * price
             
             print(tikr, tikr_holding/balance )
+        print('cash', self.cash)
+        print()
             
 
     def transaction_summary(self):
