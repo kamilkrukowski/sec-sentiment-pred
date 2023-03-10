@@ -97,7 +97,6 @@ class StockSimulation:
             self.active_log.append(tikr)
         # minus the cost of stock
         stock_cost = shares * price
-        # minus trasaction cost
         #self.cash -= stock_cost * (1 + self.transaction_cost)
         self.cash -= stock_cost 
 
@@ -111,7 +110,7 @@ class StockSimulation:
             "price": price,
             "amount": stock_cost ,
             "transaction_cost": 0,
-            "balance": self.get_net_worth(date)
+            "net_worth": self.get_net_worth(date)
         })
 
     def sell(self, tikr, date, allocated_money):
@@ -167,7 +166,7 @@ class StockSimulation:
             "price": price,
             "amount": stock_cost ,
             "transaction_cost": stock_cost * self.transaction_cost,
-            "balance": self.get_net_worth(date)
+            "net_worth": self.get_net_worth(date)
         })
 
     # #TODO
@@ -193,8 +192,12 @@ class StockSimulation:
 
         buy = []
         
-        
+        # We multiply the net worth by 0.99 to account for transaction
+        # costs incurred during selling. Specifically, the
+        # `sell()` method has a transaction cost of 1 percent, 
+        # so we reduce the net worth by 1% to account for this cost.#
         true_balance = self.get_net_worth(date) * 0.99
+
         for tikr, percent in zip(self.tikrs, percentage):
             price = self.get_price(tikr, date)
             expected_value = true_balance * percent
@@ -214,7 +217,7 @@ class StockSimulation:
 
     def get_net_worth(self, date):
         """
-        Calculates the active balance of the portfolio on a given date, including
+        Calculates the net worth of the portfolio on a given date, including
         cash and holdings of all active stocks in the portfolio.
         
         Parameters
@@ -226,7 +229,7 @@ class StockSimulation:
         Returns
         -------
         balance : float
-            The active balance of the portfolio on the given date.
+            The net worth of the portfolio on the given date.
         """
         balance = self.cash
         for tikr in self.active_log:
@@ -237,7 +240,7 @@ class StockSimulation:
     def print_portfolio(self, date):
         """
         Prints the percentage of the portfolio holdings that are invested in each
-        active stock in the portfolio, based on the active balance on the given date.
+        active stock in the portfolio, based on the net worth on the given date.
         
         Parameters
         ----------
@@ -249,13 +252,13 @@ class StockSimulation:
         -------
         None
         """
-        balance = self.get_net_worth(date)
+        net_worth = self.get_net_worth(date)
         print("portfolio_allocation on", date)
         for tikr in self.tikrs:
             price = self.get_price(tikr, date)
             tikr_holding = self.portfolio[tikr] * price
             
-            print(tikr, tikr_holding/balance )
+            print(tikr, tikr_holding/net_worth)
         print('cash', self.cash)
         print()
             
@@ -272,7 +275,7 @@ class StockSimulation:
         """
         for txn in self.transaction_log:
             print("{} {} {} shares of {} at ${:.2f} for ${:.2f} (transaction cost: ${:.2f}), balance: ${:.2f}".format(
-                txn['date'], txn['type'], txn['shares'], txn['tikr'], txn['price'], txn['amount'], txn['transaction_cost'], txn['balance']))
+                txn['date'], txn['type'], txn['shares'], txn['tikr'], txn['price'], txn['amount'], txn['transaction_cost'], txn['net_worth']))
 
 """
 def trading_strategy(
