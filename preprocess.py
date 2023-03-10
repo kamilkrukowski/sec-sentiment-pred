@@ -41,11 +41,11 @@ y_test = y[test_idxs]
 dates_test = dates[test_idxs]
 
 with open('train.tsv', 'w') as f:
-    f.write('text\tlabel\n')
+    f.write('text\tlabel\tDate\n')
     for xi, yi, di in zip(x_train, y_train, dates_train):
         f.write(f"{xi}\t{yi}\t{di}\n")
 
 with open('test.tsv', 'w') as f:
-    f.write('text\tlabel\n')
+    f.write('text\tlabel\tDate\n')
     for xi, yi, di in zip(x_test, y_test, dates_test):
         f.write(f"{xi}\t{yi}\t{di}\n")
