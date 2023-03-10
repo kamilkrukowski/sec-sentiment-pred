@@ -7,13 +7,13 @@ DATA_DIR = 'data'
 # Whether to include type of 8-K document in embedding.
 USE_DOC_SUBTYPES = True
 
-with open('0.txt') as f:  # tikr list right here
+with open('tikrs.txt') as f:  # tikr list right here
     l = f.read()
 tikrs = [i.split(',')[0] for i in l.split('\n')]
 
 #  Prepare file for constant offloading
 fout = open('8k_data.tsv', 'w', encoding='utf-8')
-fout.write("\ttikr\tFORM_TYPEs\tubmission\ttext\tDate\n")
+fout.write("\ttikr\tFORM_TYPE\tsubmission\ttext\tDate\n")
 frowidx = 0
 
 config = edgar.DataLoaderConfig(
