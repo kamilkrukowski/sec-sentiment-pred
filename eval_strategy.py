@@ -22,9 +22,17 @@ with open('train.tsv') as f:
         dates.append(datetime.strptime(date, '%Y%m%d'))
         labels.append(int(label))
 
-def chronosort(dates: List[datetime], arr: List[Any], start_date: datetime):
+def chronosort(dates: List[datetime], arr: List[Any],
+               start_date: datetime, end_date: datetime):
     """Sort dates and arr in-place by dates, remove all
-    entries before start_date."""
+    entries before start_date or after end_date"""
+
+    if type(start_date) is str:
+        start_date = datetime.strptime(start_date, '%Y%m%d') 
+
+    if type(end_date) is str:
+        end_date = datetime.strptime(end_date, '%Y%m%d') 
+
     dates = np.array(dates)
     arr = np.array(arr)
 
@@ -36,14 +44,22 @@ def chronosort(dates: List[datetime], arr: List[Any], start_date: datetime):
     dates.insert(0, start_date)
     arr = list(arr)
     arr.insert(0, -999)
+    
+    if end_date is not None:
+        dates.insert(1, end_date)
+        arr.insert(1, -999)
 
     sort_idxs = list(np.argsort(dates))
-    found_idx = sort_idxs.index(0) + 1  # We exclude our dummy entry
+    start_idx = sort_idxs.index(0) + 1  # We exclude our dummy entry
+    end_idx = None
+
+    if end_date is not None:
+        end_idx = sort_idxs.index(1)
 
     dates = np.array(dates)
     arr = np.array(arr)
-    dates = dates[sort_idxs][found_idx:]
-    arr = arr[sort_idxs][found_idx:]
+    dates = dates[sort_idxs][start_idx:end_idx]
+    arr = arr[sort_idxs][start_idx:end_idx]
 
     return dates, arr
 
@@ -54,4 +70,4 @@ company_list = open('tikrs.txt', 'r').read().strip().split('\n')
 
 allocations = strategy(labels, company_list)
 
-print(get_strategy_annual_return(allocations, company_list))
+print(get_strategy_annual_return(allocations, company_list, end_date='20220101'))
