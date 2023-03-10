@@ -1,12 +1,12 @@
 """Evaluate trading strategy performance over time interval."""
 from typing import List, Tuple, Dict
 from datetime import datetime
-
+import pickle
 
 """ All trading strategies should have standardized input to work in automated
     downstream testing."""
 class StockSimulation:
-    def __init__(self, cash=1000000, tikrs = ['aapl','msft'], historical_data=TIKRS_dat):
+    def __init__(self, historical_data, cash=1000000,  tikrs = ['aapl','msft']):
         self.cash = cash
         self.tikrs = tikrs
         self.portfolio = {}
@@ -15,7 +15,7 @@ class StockSimulation:
         self.active_log = []
         self.transaction_log = []
         self.transaction_cost = 0.01
-        self.historical_data = TIKRS_dat
+        self.historical_data = historical_data
         
     def get_price(self, tikr, date):
         start = date
@@ -120,13 +120,11 @@ class StockSimulation:
 
             if allocated_money < 0:
                 self.sell(tikr, date, -1 * allocated_money)
-                #total_transaction += self.transaction_log[-1]['transaction_cost']
             else:
                 buy += [(tikr, allocated_money )]
-        
-       # avg_transaction = total_transaction/len(buy)
+
         for tikr, allocated_money in buy:
-            self.buy(tikr, date, allocated_money )#- avg_transaction)
+            self.buy(tikr, date, allocated_money )
 
 
 
@@ -152,17 +150,22 @@ class StockSimulation:
             print("{} {} {} shares of {} at ${:.2f} for ${:.2f} (transaction cost: ${:.2f}), balance: ${:.2f}".format(
                 txn['date'], txn['type'], txn['shares'], txn['tikr'], txn['price'], txn['amount'], txn['transaction_cost'], txn['balance']))
 
-
+"""
 def trading_strategy(
-        predictions: List[Tuple(float, float, float)],
+        predictions: List[tuple],
         company_list: List[str]
             ) -> Dict[datetime, List[float]]:
-    """Calculate portfolio holdings at time intervals given 8-K labels."""
+    #Calculate portfolio holdings at time intervals given 8-K labels.
 
     strategy = dict()
 
     return strategy
+"""
 
+def load_historical_data(filename):
+    with open(filename, 'rb') as handle:
+        tikr_dict = pickle.load(handle)
+        return tikr_dict
 
 def get_strategy_annual_return(
         strategy: Dict[datetime, List[float]],
@@ -195,13 +198,19 @@ def get_strategy_annual_return(
     Annualized Return: float
         The annualized return rate, where 0% return indicates 1.00.
     """
+    TIKRS_dat = load_historical_data('TIKR_DATA.pickle')
 
     if type(start_date) is str:
         start_date = datetime.strptime(start_date, "%Y%m%d")
     if type(end_date) is str:
         end_date = datetime.strptime(end_date, "%Y%m%d")
 
-    # At each date, rebalance current networth to be distributed
-    # percentage-wise between companies in portfolio_allocations
+    s = StockSimulation(TIKRS_dat, cash = starting_balance, tikrs = company_list)
+    for date, portfolio_allocation in strategy.items():
+        # At each date, rebalance current networth to be distributed
+        # percentage-wise between companies in portfolio_allocations
+        s.rebalance(percentage= portfolio_allocation, date = date)
+        s.print_portfolio(date)
+    s.transaction_summary()
 
-    return 1.00
+    return s.active_balance(end_date)/starting_balance
