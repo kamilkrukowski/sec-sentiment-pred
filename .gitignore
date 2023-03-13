@@ -1,4 +1,14 @@
 historical
+tikrs.txt
+data
+*.zip
+*.csv
+*.tsv
+*.pickle2
+*.pickle
+*.pkl
+*.yaml
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
