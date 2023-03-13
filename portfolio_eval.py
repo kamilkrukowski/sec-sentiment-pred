@@ -169,10 +169,6 @@ class StockSimulation:
             "net_worth": self.get_net_worth(date)
         })
 
-    # #TODO
-    # def get_next_trading_date(self,tikr, date):
-        
-    #     return None
 
     def rebalance(self, percentage, date):
         """
@@ -252,15 +248,17 @@ class StockSimulation:
         -------
         None
         """
+        if type(date) is str:
+            date = datetime.strptime(date, '%Y%m%d')
+          
         net_worth = self.get_net_worth(date)
-        print("portfolio_allocation on", date)
+        print("portfolio_allocation on", date.strftime('%Y-%m-%d'))
         for tikr in self.tikrs:
             price = self.get_price(tikr, date)
             tikr_holding = self.portfolio[tikr] * price
             
-            print(tikr, tikr_holding/net_worth)
-        print('cash', self.cash)
-        print()
+            print(f"{tikr}: {round(tikr_holding/net_worth * 100, 2)}%")
+        print(f'CASH: ${round(self.cash, 2)}\n\n')
             
 
     def transaction_summary(self):
@@ -274,8 +272,18 @@ class StockSimulation:
         None
         """
         for txn in self.transaction_log:
-            print("{} {} {} shares of {} at ${:.2f} for ${:.2f} (transaction cost: ${:.2f}), balance: ${:.2f}".format(
-                txn['date'], txn['type'], txn['shares'], txn['tikr'], txn['price'], txn['amount'], txn['transaction_cost'], txn['net_worth']))
+            print(
+                "{} {} {:.2f} shares of {} at ${:.2f} for ${:.2f} (transaction cost: ${:.2f}), net worth: ${:.2f}".format(
+                datetime.strptime(
+                    txn['date'],
+                    '%Y%m%d').strftime('%Y-%m-%d'), 
+                txn['type'], 
+                txn['shares'], 
+                txn['tikr'], 
+                txn['price'], 
+                txn['amount'], 
+                txn['transaction_cost'], 
+                txn['net_worth']))
 
 """
 def trading_strategy(
@@ -333,7 +341,10 @@ def get_strategy_annual_return(
     if type(end_date) is str:
         end_date = datetime.strptime(end_date, "%Y%m%d")
 
-    s = StockSimulation(TIKRS_dat, cash = starting_balance, tikrs = company_list)
+    s = StockSimulation(
+        TIKRS_dat, 
+        cash = starting_balance, 
+        tikrs = company_list)
     for date, portfolio_allocation in strategy.items():
         # At each date, rebalance current networth to be distributed
         # percentage-wise between companies in portfolio_allocations
