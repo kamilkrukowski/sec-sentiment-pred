@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 import pickle
+from tqdm.auto import tqdm
 
 import numpy as np
 import pandas as pd
@@ -22,9 +23,10 @@ def load_data(tikrs, moving_period):
     tikrs and calculates specified avg moving period
     '''
     TIKR_dict = {}
-    for tikr in tikrs:
+    for tikr in tqdm(tikrs, desc="Downloading historical TIKR price data"):
         company_df = load_df(tikr, moving_period)
         TIKR_dict[tikr] = company_df
+    TIKR_dict['^GSPC'] = load_df('^GSPC', moving_period)
     return TIKR_dict
 
 
@@ -32,7 +34,7 @@ def load_df(tikr, moving_avg):
     '''
     Downloads and clean dataframe and calculates specified avg moving period
     '''
-    df = yf.download(tikr, start="1990-01-01").reset_index()
+    df = yf.download(tikr, start="1990-01-01", progress=False).reset_index()
     df['Close'] = df['Close'].replace('[\$,]', '', regex=True).astype(float)
     df['moving_avg'] = df['Close'].rolling(window=moving_avg).mean()
     return df
@@ -111,12 +113,11 @@ if not os.path.exists('TIKR_DATA.pickle'):
 
 # loads historical dataframe from pickle file
 TIKRS_dat = load_historical_data('TIKR_DATA.pickle')
-comp_his = load_df('^GSPC', 7)  # reference dataframe
 
 
-data = pd.read_csv('8k_dataset.tsv', sep='\t')
+data = pd.read_csv('8k_data.tsv', sep='\t')
 data['label'] = data.apply(lambda row: label_performance(
-    row['tikr'], comp_his, row['Date'], 7, 0.01), axis=1)
+    row['tikr'], TIKRS_dat['^GSPC'], row['Date'], 7, 0.01), axis=1)
 
 print(data['label'].value_counts())
 data.to_csv('8k_data_labels.tsv', sep='\t')
