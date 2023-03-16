@@ -30,13 +30,16 @@ def load_data(tikrs, moving_period):
     return TIKR_dict
 
 
-def load_df(tikr, moving_avg):
+def load_df(tikr, n_moving_avg):
     '''
     Downloads and clean dataframe and calculates specified avg moving period
     '''
     df = yf.download(tikr, start="1990-01-01", progress=False).reset_index()
     df['Close'] = df['Close'].replace('[\$,]', '', regex=True).astype(float)
-    df['moving_avg'] = df['Close'].rolling(window=moving_avg).mean()
+    df['n_moving_avg'] = df['Close'].rolling(window=n_moving_avg).mean()
+    df['7_day_moving_avg'] = df['Close'].rolling(window=7).mean()
+    df['30_day_moving_avg'] = df['Close'].rolling(window=30).mean()
+    df['90_day_moving_avg'] = df['Close'].rolling(window=90).mean()
     return df
 
 
@@ -65,15 +68,15 @@ def label_performance(tikr, ref_df, date, days_period, threshold=0):
     try:
         company_df = TIKRS_dat[tikr]
         company_avg_before = company_df[company_df['Date']
-                                        < date].iloc[-1]['moving_avg']
+                                        < date].iloc[-1]['n_moving_avg']
         # gets n-day moving average from days_period after date
         company_avg_after = company_df[company_df['Date']
-                                       > date].iloc[days_period]['moving_avg']
+                                       > date].iloc[days_period]['n_moving_avg']
 
-        ref_avg_before = ref_df[ref_df['Date'] < date].iloc[-1]['moving_avg']
+        ref_avg_before = ref_df[ref_df['Date'] < date].iloc[-1]['n_moving_avg']
 
         ref_avg_after = ref_df[ref_df['Date'] >
-                               date].iloc[days_period]['moving_avg']
+                               date].iloc[days_period]['n_moving_avg']
         company_delta = (company_avg_after -
                          company_avg_before) / company_avg_before
         ref_delta = (ref_avg_after - ref_avg_before) / ref_avg_before
@@ -203,6 +206,13 @@ def generate_annualized_return(tikr, start_date, n_days = [7,30,90],inflation_ad
             # If an error occurs, return None
             result += (None, None)
     return result
+def get_price(tikr, date, moving_avg_col_name):
+    try:
+        date = datetime.strptime(str(date), "%Y%m%d")
+    except:
+        return -1
+    company_df = TIKRS_dat[tikr]
+    return company_df[company_df['Date'] > date].iloc[0][moving_avg_col_name]
 
 def load_historical_data(filename):
     with open(filename, 'rb') as handle:
@@ -283,6 +293,18 @@ data[['7_day_return','sp_7_day_return',
 
 
 #print(data['label'].value_counts())
-data.to_csv('8k_data_labels.tsv', sep='\t')
 print(data[['Date', 'tikr' ,'7_day_return','30_day_return','90_day_return','sp_7_day_return','sp_30_day_return','sp_90_day_return']])
 #print(data.columns)
+data['7_day_moving_avg'] = data.apply(lambda row: get_price(
+    row['tikr'], row['Date'], "7_day_moving_avg"), axis=1)
+
+data['30_day_moving_avg'] = data.apply(lambda row: get_price(
+    row['tikr'], row['Date'], "30_day_moving_avg"), axis=1)
+
+data['90_day_moving_avg'] = data.apply(lambda row: get_price(
+    row['tikr'], row['Date'], "90_day_moving_avg"), axis=1)
+
+
+print(data['label'].value_counts())
+data.to_csv('8k_data_labels.tsv', sep='\t')
+
