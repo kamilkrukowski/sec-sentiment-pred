@@ -314,6 +314,19 @@ data['90_day_after_moving_avg'] = data.apply(lambda row: get_price(
     row['tikr'], row['Date'], 90), axis=1)
 
 
+data['1_day_after_moving_avg'] = data.apply(lambda row: get_price(
+    row['tikr'], row['Date'], 1), axis=1)
+
+data['7_day_after_moving_avg'] = data.apply(lambda row: get_price(
+    row['tikr'], row['Date'], 7), axis=1)
+
+data['30_day_after_moving_avg'] = data.apply(lambda row: get_price(
+    row['tikr'], row['Date'], 30), axis=1)
+
+data['90_day_after_moving_avg'] = data.apply(lambda row: get_price(
+    row['tikr'], row['Date'], 90), axis=1)
+
+
 print(data['label'].value_counts())
 
 print(data.head(10))
