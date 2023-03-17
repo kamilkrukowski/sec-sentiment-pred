@@ -117,15 +117,27 @@ def output_historical_data(filename, data):
 DOWNLOADS TIKR DATA TO STORE
 Only run if TIKR_DATA.pickle does not exist
 '''
+
+tikrs = get_tikrs('tikrs.txt')
 if not os.path.exists('TIKR_DATA.pickle'):
-    tikrs = get_tikrs('tikrs.txt')
     TIKRS_dat = load_data(tikrs, 7)
     output_historical_data('TIKR_DATA.pickle', TIKRS_dat)
+
+else:
+    TIKRS_dat = load_historical_data('TIKR_DATA.pickle')
+    for tikr in tikrs:
+        if tikr not in TIKRS_dat:
+            print(f"Loading: {tikr}")
+            TIKRS_dat[tikr] = load_df(tikr, 7)
+
+        
+
+
 
 #####################################################
 
 # loads historical dataframe from pickle file
-TIKRS_dat = load_historical_data('TIKR_DATA.pickle')
+# TIKRS_dat = load_historical_data('TIKR_DATA.pickle')
 
 
 data = pd.read_csv('8k_data.tsv', sep='\t')
