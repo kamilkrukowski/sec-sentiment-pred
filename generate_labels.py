@@ -204,7 +204,6 @@ def generate_annualized_return(tikr, start_date, n_days = [7,30,90],inflation_ad
             # If an error occurs, return None
             result += (None, None)
     return result
-
 def get_price(tikr, date, days_after):
     try:
         date = datetime.strptime(str(date), "%Y%m%d")
@@ -291,29 +290,14 @@ data[['7_day_return','sp_7_day_return',
                                                                         row['tikr'], 
                                                                         row['Date'], 
                                                                         n_days = [7,30,90],
-                                                                        inflation_adjusted = False), axis=1, result_type="expand")
+                                                                        inflation_adjusted = True), axis=1, result_type="expand")
 
 
 
 
 #print(data['label'].value_counts())
-print(data[['Date', 'tikr' ,'7_day_return','30_day_return','90_day_return','sp_7_day_return','sp_30_day_return','sp_90_day_return']])
+#print(data[['Date', 'tikr' ,'7_day_return','30_day_return','90_day_return','sp_7_day_return','sp_30_day_return','sp_90_day_return']])
 #print(data.columns)
-
-
-data['1_day_after_moving_avg'] = data.apply(lambda row: get_price(
-    row['tikr'], row['Date'], 1), axis=1)
-
-data['7_day_after_moving_avg'] = data.apply(lambda row: get_price(
-    row['tikr'], row['Date'], 7), axis=1)
-
-data['30_day_after_moving_avg'] = data.apply(lambda row: get_price(
-    row['tikr'], row['Date'], 30), axis=1)
-
-data['90_day_after_moving_avg'] = data.apply(lambda row: get_price(
-    row['tikr'], row['Date'], 90), axis=1)
-
-
 data['1_day_after_moving_avg'] = data.apply(lambda row: get_price(
     row['tikr'], row['Date'], 1), axis=1)
 
