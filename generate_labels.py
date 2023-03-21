@@ -328,7 +328,7 @@ def ma_wrapper(tikr, date):
             get_price(tikr, date, 30), get_price(tikr, date, 90)
 
 data[keys] = data.progress_apply(lambda row: ma_wrapper(
-                                    row['tikr'], row['Date']), axis=1)
+                    row['tikr'], row['Date']), axis=1, result_type='expand')
 
 data = data.dropna()
 
