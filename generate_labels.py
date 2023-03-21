@@ -1,17 +1,14 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 import pickle
 from tqdm.auto import tqdm
 
-import numpy as np
 import pandas as pd
 import yfinance as yf
 
 
 def get_tikrs(file_dir):
-    '''
-    Reads in the TIKRS from a txt file separted by newlines
-    '''
+    '''Read in the TIKRS from a txt file separted by newlines'''
     with open(file_dir) as f:
         tikrs = f.read().splitlines()
     return tikrs
@@ -35,7 +32,7 @@ def load_df(tikr, n_moving_avg):
     Downloads and clean dataframe and calculates specified avg moving period
     '''
     df = yf.download(tikr, start="1990-01-01", progress=False).reset_index()
-    df['Close'] = df['Close'].replace('[\$,]', '', regex=True).astype(float)
+    df['Close'] = df['Close'].replace('[\\$,]', '', regex=True).astype(float)
     df['n_moving_avg'] = df['Close'].rolling(window=n_moving_avg).mean()
 
     return df
@@ -58,10 +55,7 @@ def label_performance(tikr, ref_df, date, days_period, threshold=0):
         threshold: int
             percent more or less to label underperformance or overperformance
     '''
-    try:
-        date = datetime.strptime(str(date), "%Y%m%d")
-    except:
-        return -1  # date formatting isue
+    date = datetime.strptime(str(date), "%Y%m%d")
     # gets n-day moving average from day before
     try:
         company_df = TIKRS_dat[tikr]
@@ -86,10 +80,12 @@ def label_performance(tikr, ref_df, date, days_period, threshold=0):
             return 1  # outperforms
         else:
             return 2  # neutral performance
-    except:
+    except BaseException:
         return -1  # invalid date or error
 
-def n_days_annualized_return(tikr, start_date, days_period, inflation_adjusted = False):
+
+def n_days_annualized_return(
+        tikr, start_date, days_period, inflation_adjusted=False):
     '''
     Calculates the n-day annualized return for a given TIKR and start date
 
@@ -109,35 +105,39 @@ def n_days_annualized_return(tikr, start_date, days_period, inflation_adjusted =
         annualized_return: float
             the n-day annualized return as a percentage
     '''
-    if type(start_date) is int:
+    if isinstance(start_date, int):
         start_date = datetime.strptime(str(start_date), "%Y%m%d")
     try:
-        #end_date = start_date + timedelta(days=days_period)
-        #end_date = end_date.strftime('%Y-%m-%d')
+        # end_date = start_date + timedelta(days=days_period)
+        # end_date = end_date.strftime('%Y-%m-%d')
         start_date = start_date.strftime('%Y-%m-%d')
 
         company_df = TIKRS_dat[tikr]
-        start_price = company_df[company_df['Date'] > start_date].iloc[0]['Close']
-        end_price = company_df[company_df['Date'] > start_date].iloc[days_period -1]['Close']
+        start_price = company_df[company_df['Date']
+                                 > start_date].iloc[0]['Close']
+        end_price = company_df[company_df['Date'] >
+                               start_date].iloc[days_period - 1]['Close']
 
-
-        # Calculate the fractional number of years using the total number of days
-        n = days_period / 365.25  # assuming a leap year every 4 years   
-
+        # Calculate the fractional number of years using the total number of
+        # days
+        n = days_period / 365.25  # assuming a leap year every 4 years
 
         if inflation_adjusted:
             inflation_rate = calculate_inflation(start_date, end_date)
-            return ((end_price/start_price) / (1 + inflation_rate)) ** (1 / n) - 1
+            return ((end_price / start_price) /
+                    (1 + inflation_rate)) ** (1 / n) - 1
         else:
-            #print(f"{start_date}: {start_price}, {end_date}: {end_price}")
-            return (end_price/start_price) ** (1 / n) - 1
-    except:
+            # print(f"{start_date}: {start_price}, {end_date}: {end_price}")
+            return (end_price / start_price) ** (1 / n) - 1
+    except BaseException:
         return -1
 
-def generate_annualized_return(tikr, start_date, n_days = [7,30,90],inflation_adjusted = False):
+
+def generate_annualized_return(tikr, start_date, n_days=[7, 30, 90],
+                               inflation_adjusted=False):
     """
-    Calculates the annualized return for a given company TIKR and the S&P500 index for the specified number of days 
-    starting from the given start date. Returns a tuple of annualized returns for the specified periods, and for both 
+    Calculates the annualized return for a given company TIKR and the S&P500 index for the specified number of days
+    starting from the given start date. Returns a tuple of annualized returns for the specified periods, and for both
     the company and S&P500 index.
 
     Parameters:
@@ -145,77 +145,93 @@ def generate_annualized_return(tikr, start_date, n_days = [7,30,90],inflation_ad
     tikr: str
         A string representing the TIKR (ticker) symbol of the company.
     start_date: int or datetime.datetime object
-        The start date of the period for which returns are to be calculated. This can be either an integer in the format 
+        The start date of the period for which returns are to be calculated. This can be either an integer in the format
         YYYYMMDD or a datetime.datetime object.
     n_days: List[int]
-        A list of integers representing the number of days for which annualized returns are to be calculated. The default 
+        A list of integers representing the number of days for which annualized returns are to be calculated. The default
         value is [7, 30, 90].
     inflation_adjusted: bool
         A boolean flag indicating whether to adjust the returns for inflation. The default value is False.
 
     Returns:
     --------
-    A tuple of floats representing the annualized returns for the specified periods and for both the company and S&P500 
+    A tuple of floats representing the annualized returns for the specified periods and for both the company and S&P500
     index. The tuple has a length of 2 times the length of `n_days`.
     """
     try:
         # Convert start_date to a datetime object if it's an integer
-        if type(start_date) is int:
+        if isinstance(start_date, int):
             start_date = datetime.strptime(str(start_date), "%Y%m%d")
-            
+
         # Initialize an empty tuple to hold the calculated returns
         result = ()
-        
+
         # Convert start_date to string format for use in DataFrame indexing
         start_date = start_date.strftime('%Y-%m-%d')
-        
-        # Retrieve the DataFrame for the given company and S&P500 from the TIKRS_dat dictionary
+
+        # Retrieve the DataFrame for the given company and S&P500 from the
+        # TIKRS_dat dictionary
         company_df = TIKRS_dat[tikr]
         sp_df = TIKRS_dat['^GSPC']
-        
-        # Get the stock prices for the given company and S&P500 on the start date
-        start_price = company_df[company_df['Date'] > start_date].iloc[0]['Close']
+
+        # Get the stock prices for the given company and S&P500 on the start
+        # date
+        start_price = company_df[company_df['Date']
+                                 > start_date].iloc[0]['Close']
         sp_start_price = sp_df[sp_df['Date'] > start_date].iloc[0]['Close']
-    
-    except:
-        # If there's an error in the try block, return None for all the calculated returns
+
+    except BaseException:
+        # If there's an error in the try block, return None for all the
+        # calculated returns
         return ('None',) * (len(n_days) * 2)
-    
-    # Calculate the returns for each specified period and add them to the result tuple
+
+    # Calculate the returns for each specified period and add them to the
+    # result tuple
     for n in n_days:
         try:
-            # Get the stock prices for the given company and S&P500 n days after the start date
-            n_day_price = company_df[company_df['Date'] > start_date].iloc[n - 1]['Close']
-            sp_n_day_price = sp_df[sp_df['Date'] > start_date].iloc[n-1]['Close']
-            
-            # Calculate the return for the given company for the specified period
+            # Get the stock prices for the given company and S&P500 n days
+            # after the start date
+            n_day_price = company_df[company_df['Date']
+                                     > start_date].iloc[n - 1]['Close']
+            sp_n_day_price = sp_df[sp_df['Date']
+                                   > start_date].iloc[n - 1]['Close']
+
+            # Calculate the return for the given company for the specified
+            # period
             if inflation_adjusted:
-                # If inflation_adjusted is True, adjust the return for inflation using the 
-                # calculate_inflation function and the start date and period length (n)
-                n_day_inflation_rate = calculate_inflation(start_date, n, silence=True)
-                n_day_return = ((n_day_price/start_price)/ (1 + n_day_inflation_rate)) ** (365.25/n) - 1
-                sp_n_day_return = ((sp_n_day_price/sp_start_price)/ (1 + n_day_inflation_rate)) ** (365.25/n) - 1
+                # If inflation_adjusted is True, adjust the return for
+                # inflation using the
+                # calculate_inflation function and the start date and period
+                # length (n)
+                n_day_inflation_rate = calculate_inflation(
+                    start_date, n, silence=True)
+                n_day_return = ((n_day_price / start_price) /
+                                (1 + n_day_inflation_rate)) ** (365.25 / n) - 1
+                sp_n_day_return = ((sp_n_day_price / sp_start_price) /
+                                   (1 + n_day_inflation_rate)) ** (365.25 / n) - 1
             else:
-                # If inflation_adjusted is False, calculate the return without adjusting for inflation
-                n_day_return = (n_day_price/start_price) ** (365.25/n) -1
-                sp_n_day_return = (sp_n_day_price/sp_start_price) ** (365.25/n)-1
-            result += (n_day_return, sp_n_day_return )
-        except:
+                # If inflation_adjusted is False, calculate the return without
+                # adjusting for inflation
+                n_day_return = (n_day_price / start_price) ** (365.25 / n) - 1
+                sp_n_day_return = (
+                    sp_n_day_price / sp_start_price) ** (365.25 / n) - 1
+            result += (n_day_return, sp_n_day_return)
+        except BaseException:
             # If an error occurs, return None
             result += (None, None)
     return result
+
+
 def get_price(tikr, date, days_after):
     try:
         date = datetime.strptime(str(date), "%Y%m%d")
         company_df = TIKRS_dat[tikr]
-        price_n_days_after = company_df[company_df["Date"]
-                                    > date].iloc[days_after-1]['n_moving_avg']
+        price_n_days_after = company_df[
+            company_df["Date"] > date].iloc[days_after - 1]['n_moving_avg']
         return price_n_days_after
-    except:
-        return -1 # date too old/new or wrong format
-    
+    except BaseException:
+        return -1  # date too old/new or wrong format
 
-   
 
 def load_historical_data(filename):
     with open(filename, 'rb') as handle:
@@ -227,11 +243,12 @@ def output_historical_data(filename, data):
     with open(filename, 'wb') as handle:
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-def calculate_inflation(start_date, days_period, silence = True):
+
+def calculate_inflation(start_date, days_period, silence=True):
     """
-    average annual inflation rate between two dates using the Consumer Price Index (CPI) for All Urban Consumers: 
+    average annual inflation rate between two dates using the Consumer Price Index (CPI) for All Urban Consumers:
     All Items in U.S. City Average data.
-    
+
     Parameters
     ----------
     start_date : str
@@ -240,7 +257,7 @@ def calculate_inflation(start_date, days_period, silence = True):
             number of trading days to include in the period
     silence : bool
         If True, suppress print statements.
-    
+
     Returns
     -------
     float
@@ -248,20 +265,21 @@ def calculate_inflation(start_date, days_period, silence = True):
     """
     # Convert start and end dates to pandas datetime objects
     start_date = pd.to_datetime(start_date)
-    
-    end_date = start_date+ pd.DateOffset(days= days_period)
+
+    end_date = start_date + pd.DateOffset(days=days_period)
     # Find the closest CPI levels to the start and end dates
-   
+
     start_cpi = CPI_df.loc[CPI_df['DATE'] <= start_date].iloc[-1]['CPIAUCSL']
     end_cpi = CPI_df.loc[CPI_df['DATE'] <= end_date].iloc[-1]['CPIAUCSL']
-    
+
     # Calculate inflation rate as the percentage change in CPI
-    inflation_rate = (end_cpi - start_cpi) / start_cpi 
+    inflation_rate = (end_cpi - start_cpi) / start_cpi
 
     if not silence:
-        print(f"start_cpi: { start_cpi} end_cpi: {end_cpi}\ninflation_rate: {inflation_rate}")
+        print(
+            f"start_cpi: { start_cpi} end_cpi: {end_cpi}\ninflation_rate: {inflation_rate}")
     return inflation_rate
-    
+
 
 '''
 DOWNLOADS TIKR DATA TO STORE
@@ -276,28 +294,23 @@ if not os.path.exists('TIKR_DATA.pickle'):
 
 # loads historical dataframe from pickle file
 TIKRS_dat = load_historical_data('TIKR_DATA.pickle')
-CPI_df = pd.read_csv('CPIAUCSL.csv', parse_dates =["DATE"])
+CPI_df = pd.read_csv('CPIAUCSL.csv', parse_dates=["DATE"])
 
 
 data = pd.read_csv('8k_data.tsv', sep='\t')
 data['label'] = data.apply(lambda row: label_performance(
-   row['tikr'], TIKRS_dat['^GSPC'], row['Date'], 7, 0.01), axis=1)
+    row['tikr'], TIKRS_dat['^GSPC'], row['Date'], 7, 0.01), axis=1)
 
 # Annualize the return over the investment period (7, 30, 90) day
-data[['7_day_return','sp_7_day_return',
-        '30_day_return','sp_30_day_return',
-        '90_day_return','sp_90_day_return']] = data.apply(lambda  row: generate_annualized_return( 
-                                                                        row['tikr'], 
-                                                                        row['Date'], 
-                                                                        n_days = [7,30,90],
-                                                                        inflation_adjusted = True), axis=1, result_type="expand")
+data[['7_day_return', 'sp_7_day_return',
+      '30_day_return', 'sp_30_day_return',
+      '90_day_return', 'sp_90_day_return']] = data.apply(lambda row: generate_annualized_return(
+          row['tikr'],
+          row['Date'],
+          n_days=[7, 30, 90],
+          inflation_adjusted=True), axis=1, result_type="expand")
 
 
-
-
-#print(data['label'].value_counts())
-#print(data[['Date', 'tikr' ,'7_day_return','30_day_return','90_day_return','sp_7_day_return','sp_30_day_return','sp_90_day_return']])
-#print(data.columns)
 data['1_day_after_moving_avg'] = data.apply(lambda row: get_price(
     row['tikr'], row['Date'], 1), axis=1)
 
@@ -315,4 +328,3 @@ print(data['label'].value_counts())
 
 print(data.head(10))
 data.to_csv('8k_data_labels.tsv', sep='\t')
-
