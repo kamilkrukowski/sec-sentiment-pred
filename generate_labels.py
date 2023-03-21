@@ -3,6 +3,7 @@ from datetime import datetime
 import pickle
 from tqdm.auto import tqdm
 
+import numpy as np
 import pandas as pd
 import yfinance as yf
 
@@ -81,7 +82,7 @@ def label_performance(tikr, ref_df, date, days_period, threshold=0):
         else:
             return 2  # neutral performance
     except BaseException:
-        return -1  # invalid date or error
+        return np.nan
 
 
 def n_days_annualized_return(
@@ -130,7 +131,7 @@ def n_days_annualized_return(
             # print(f"{start_date}: {start_price}, {end_date}: {end_price}")
             return (end_price / start_price) ** (1 / n) - 1
     except BaseException:
-        return -1
+        return np.nan
 
 
 def generate_annualized_return(tikr, start_date, n_days=[7, 30, 90],
@@ -230,7 +231,7 @@ def get_price(tikr, date, days_after):
             company_df["Date"] > date].iloc[days_after - 1]['n_moving_avg']
         return price_n_days_after
     except BaseException:
-        return -1  # date too old/new or wrong format
+        return np.nan  # date too old/new or wrong format
 
 
 def load_historical_data(filename):
@@ -298,31 +299,39 @@ CPI_df = pd.read_csv('CPIAUCSL.csv', parse_dates=["DATE"])
 
 
 data = pd.read_csv('8k_data.tsv', sep='\t')
-data['label'] = data.apply(lambda row: label_performance(
+
+tqdm.pandas(desc='1/3 Generating Categories...', leave=False)
+data['label'] = data.progress_apply(lambda row: label_performance(
     row['tikr'], TIKRS_dat['^GSPC'], row['Date'], 7, 0.01), axis=1)
 
+tqdm.pandas(desc='2/3 Generating Price Data...', leave=False)
 # Annualize the return over the investment period (7, 30, 90) day
 data[['7_day_return', 'sp_7_day_return',
       '30_day_return', 'sp_30_day_return',
-      '90_day_return', 'sp_90_day_return']] = data.apply(lambda row: generate_annualized_return(
+      '90_day_return', 'sp_90_day_return']] = data.progress_apply(lambda row: generate_annualized_return(
           row['tikr'],
           row['Date'],
           n_days=[7, 30, 90],
           inflation_adjusted=True), axis=1, result_type="expand")
 
+keys = ['7_day_return', 'sp_7_day_return', '30_day_return', 'sp_30_day_return',
+      '90_day_return', 'sp_90_day_return', '1_day_after_moving_avg',
+      '7_day_after_moving_avg', '30_day_after_moving_avg',
+      '90_day_after_moving_avg'] 
 
-data['1_day_after_moving_avg'] = data.apply(lambda row: get_price(
-    row['tikr'], row['Date'], 1), axis=1)
+tqdm.pandas(desc='3/3 Finalizing Returns...', leave=False)
 
-data['7_day_after_moving_avg'] = data.apply(lambda row: get_price(
-    row['tikr'], row['Date'], 7), axis=1)
+keys = ['1_day_after_moving_avg', '7_day_after_moving_avg',
+        '30_day_after_moving_avg', '90_day_after_moving_avg']
 
-data['30_day_after_moving_avg'] = data.apply(lambda row: get_price(
-    row['tikr'], row['Date'], 30), axis=1)
+def ma_wrapper(tikr, date):
+    return get_price(tikr, date, 1), get_price(tikr, date, 7), \
+            get_price(tikr, date, 30), get_price(tikr, date, 90)
 
-data['90_day_after_moving_avg'] = data.apply(lambda row: get_price(
-    row['tikr'], row['Date'], 90), axis=1)
+data[keys] = data.progress_apply(lambda row: ma_wrapper(
+                                    row['tikr'], row['Date']), axis=1)
 
+data = data.dropna()
 
 print(data['label'].value_counts())
 
