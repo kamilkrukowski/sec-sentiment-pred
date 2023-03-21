@@ -109,7 +109,7 @@ def n_days_annualized_return(
     if isinstance(start_date, int):
         start_date = datetime.strptime(str(start_date), "%Y%m%d")
     try:
-        end_date = start_date + timedelta(days=days_period)
+        
         start_date = start_date.strftime('%Y-%m-%d')
 
         company_df = TIKRS_dat[tikr]
@@ -121,9 +121,8 @@ def n_days_annualized_return(
         # Calculate the fractional number of years using the total number of
         # days
         n = days_period / 365.25  # assuming a leap year every 4 years
-
         if inflation_adjusted:
-            inflation_rate = calculate_inflation(start_date, end_date)
+            inflation_rate = calculate_inflation(start_date, days_period, silence = True)
             return ((end_price / start_price) /
                     (1 + inflation_rate)) ** (1 / n) - 1
         else:
