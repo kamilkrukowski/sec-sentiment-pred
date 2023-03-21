@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import pickle
 from tqdm.auto import tqdm
 
@@ -109,8 +109,7 @@ def n_days_annualized_return(
     if isinstance(start_date, int):
         start_date = datetime.strptime(str(start_date), "%Y%m%d")
     try:
-        # end_date = start_date + timedelta(days=days_period)
-        # end_date = end_date.strftime('%Y-%m-%d')
+        end_date = start_date + timedelta(days=days_period)
         start_date = start_date.strftime('%Y-%m-%d')
 
         company_df = TIKRS_dat[tikr]
