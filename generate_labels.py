@@ -182,7 +182,7 @@ def generate_annualized_return(tikr, start_date, n_days=[7, 30, 90],
     except BaseException:
         # If there's an error in the try block, return None for all the
         # calculated returns
-        return ('None',) * (len(n_days) * 2)
+        return (None ,) * (len(n_days) * 2)
 
     # Calculate the returns for each specified period and add them to the
     # result tuple
