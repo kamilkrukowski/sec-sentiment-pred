@@ -24,7 +24,7 @@ plt.savefig('fig.png')
 plt.clf()
 
 ay = ac_train[c_train != 2]
-py = pc_train[c_train != 2] 
+py = pc_train[c_train != 2]
 c = c_train[c_train != 2]
 
 print("\nAbility to distinguish Sentiment Class by using Return as Score"
