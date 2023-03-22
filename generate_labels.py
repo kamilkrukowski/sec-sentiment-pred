@@ -7,12 +7,13 @@ from argparse import ArgumentParser
 import numpy as np
 import pandas as pd
 import yfinance as yf
+from tqdm.auto import tqdm
 
 
 from utils import prog_read_csv
 
 HOLD_PERIOD = 90
-TIKR_LIST_FILE = 'tikr.txt'
+TIKR_LIST_FILE = 'tikrs.txt'
 PICKLED_YFINANCE = 'TIKR_DATA.pickle'
 
 args = ArgumentParser()
@@ -20,7 +21,7 @@ args.add_argument('--demo', action='store_true')
 args = args.parse_args()
 
 
-def load_historical_data(tikrs, moving_period):
+def load_historical_company_data(tikrs, moving_period):
     '''
     Loads in historical data by tikr into a dictionary
     tikrs and calculates specified avg moving period
@@ -286,12 +287,6 @@ def get_price(tikr, date, days_after):
         return np.nan  # date too old/new or wrong format
 
 
-def load_historical_data(filename):
-    with open(filename, 'rb') as handle:
-        tikr_dict = pickle.load(handle)
-        return tikr_dict
-
-
 def output_historical_data(filename, data):
     with open(filename, 'wb') as handle:
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -342,13 +337,16 @@ if not os.path.exists(PICKLED_YFINANCE):
     tikrs = None
     with open(TIKR_LIST_FILE) as f:
         tikrs = f.read().splitlines()
-    TIKRS_dat = load_historical_data(tikrs, 7)
+    TIKRS_dat = load_historical_company_data(tikrs, 7)
     output_historical_data(PICKLED_YFINANCE, TIKRS_dat)
 
 #####################################################
 
 # loads historical dataframe from pickle file
-TIKRS_dat = load_historical_data(PICKLED_YFINANCE)
+TIKRS_dat = None
+with open(PICKLED_YFINANCE, 'rb') as handle:
+    TIKRS_dat = pickle.load(handle)
+
 CPI_df = pd.read_csv('CPIAUCSL.csv', parse_dates=["DATE"])
 
 
@@ -375,8 +373,8 @@ tqdm.pandas(desc='4/4 Generating Annualized Return...', leave=False)
 # Annualize the return over the investment period (7, 30, 90) day
 data[['start price',
       'end price',
-      'annualized return',
-      'sp annualized return']] = data.progress_apply(
+      'annual return',
+      'sp annual return']] = data.progress_apply(
     lambda row: generate_annualized_return(
         row['tikr'],
         row['Date'],
