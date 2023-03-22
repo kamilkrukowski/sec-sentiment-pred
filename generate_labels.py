@@ -131,6 +131,51 @@ def n_days_annualized_return(
     except BaseException:
         return np.nan
 
+def n_days_percent_return(
+        tikr, start_date, days_period, inflation_adjusted=False):
+    '''
+    Calculates the n-day annualized return for a given TIKR and start date
+
+    Parameters
+        ---------
+        tikr: str
+            a company identifier
+        start_date: int or datetime object
+            start date of the period to calculate return
+        days_period: int
+            number of trading days to include in the period
+        inflation_adjusted: bool
+            flag to indicate whether to adjust returns for inflation
+
+    Returns
+        -------
+        annualized_return: float
+            the n-day annualized return as a percentage
+    '''
+    if isinstance(start_date, int):
+        start_date = datetime.strptime(str(start_date), "%Y%m%d")
+    try:
+        
+        start_date = start_date.strftime('%Y-%m-%d')
+
+        company_df = TIKRS_dat[tikr]
+        start_price = company_df[company_df['Date']
+                                 > start_date].iloc[0]['Close']
+        end_price = company_df[company_df['Date'] >
+                               start_date].iloc[days_period - 1]['Close']
+
+        # Calculate the fractional number of years using the total number of
+        # days
+        n = days_period / 365.25  # assuming a leap year every 4 years
+        if inflation_adjusted:
+            inflation_rate = calculate_inflation(start_date, days_period, silence = True)
+            return ((end_price / start_price) /
+                    (1 + inflation_rate)) -1
+        else:
+            # print(f"{start_date}: {start_price}, {end_date}: {end_price}")
+            return (end_price / start_price) -1
+    except BaseException:
+        return np.nan
 
 def generate_annualized_return(tikr, start_date, n_days=[7, 30, 90],
                                inflation_adjusted=False):
@@ -154,8 +199,8 @@ def generate_annualized_return(tikr, start_date, n_days=[7, 30, 90],
 
     Returns:
     --------
-    A tuple of floats representing the annualized returns for the specified periods and for both the company and S&P500
-    index. The tuple has a length of 2 times the length of `n_days`.
+    A tuple of floats representing start price of next day, the annualized returns for the specified periods
+    and for both the company and S&P500 index. The tuple has a length of 3 times the length of `n_days`.
     """
     try:
         # Convert start_date to a datetime object if it's an integer
@@ -182,8 +227,7 @@ def generate_annualized_return(tikr, start_date, n_days=[7, 30, 90],
     except BaseException:
         # If there's an error in the try block, return None for all the
         # calculated returns
-        return (None ,) * (len(n_days) * 2)
-
+        return (None ,) * (len(n_days) * 3)
     # Calculate the returns for each specified period and add them to the
     # result tuple
     for n in n_days:
@@ -214,10 +258,11 @@ def generate_annualized_return(tikr, start_date, n_days=[7, 30, 90],
                 n_day_return = (n_day_price / start_price) ** (365.25 / n) - 1
                 sp_n_day_return = (
                     sp_n_day_price / sp_start_price) ** (365.25 / n) - 1
-            result += (n_day_return, sp_n_day_return)
+
+            result += (start_price, n_day_return, sp_n_day_return)
         except BaseException:
             # If an error occurs, return None
-            result += (None, None)
+            result += (None, None, None)
     return result
 
 
@@ -298,26 +343,40 @@ CPI_df = pd.read_csv('CPIAUCSL.csv', parse_dates=["DATE"])
 
 data = pd.read_csv('8k_data.tsv', sep='\t')
 
-tqdm.pandas(desc='1/3 Generating Categories...', leave=False)
+
+
+
+HOLD_PERIOD = 90
+
+
+tqdm.pandas(desc='1/4 Generating Categories...', leave=False)
 data['label'] = data.progress_apply(lambda row: label_performance(
     row['tikr'], TIKRS_dat['^GSPC'], row['Date'], 7, 0.01), axis=1)
 
-tqdm.pandas(desc='2/3 Generating Price Data...', leave=False)
+tqdm.pandas(desc='2/4 Generating Annualized Return...', leave=False)
 # Annualize the return over the investment period (7, 30, 90) day
-data[['7_day_return', 'sp_7_day_return',
-      '30_day_return', 'sp_30_day_return',
-      '90_day_return', 'sp_90_day_return']] = data.progress_apply(lambda row: generate_annualized_return(
+data[[  'start price',
+        'annualized return',
+        'sp annualized return']] = data.progress_apply(lambda row: generate_annualized_return(
           row['tikr'],
           row['Date'],
-          n_days=[7, 30, 90],
+          n_days=[HOLD_PERIOD],
           inflation_adjusted=True), axis=1, result_type="expand")
 
+tqdm.pandas(desc='3/4 Generating Percent Return...', leave=False)
+# Annualize the return over the investment period (7, 30, 90) day
+data['percent return'] = data.progress_apply(lambda row: n_days_percent_return(
+          row['tikr'],
+          row['Date'],
+          days_period=HOLD_PERIOD,
+          inflation_adjusted=True), axis=1)
+"""
 keys = ['7_day_return', 'sp_7_day_return', '30_day_return', 'sp_30_day_return',
       '90_day_return', 'sp_90_day_return', '1_day_after_moving_avg',
       '7_day_after_moving_avg', '30_day_after_moving_avg',
       '90_day_after_moving_avg'] 
-
-tqdm.pandas(desc='3/3 Finalizing Returns...', leave=False)
+"""
+tqdm.pandas(desc='4/4 Finalizing Returns...', leave=False)
 
 keys = ['1_day_after_moving_avg', '7_day_after_moving_avg',
         '30_day_after_moving_avg', '90_day_after_moving_avg']
@@ -331,7 +390,9 @@ data[keys] = data.progress_apply(lambda row: ma_wrapper(
 
 data = data.dropna()
 
+
 print(data['label'].value_counts())
 
 print(data.head(10))
+
 data.to_csv('8k_data_labels.tsv', sep='\t')
