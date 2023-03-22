@@ -13,12 +13,12 @@ from tqdm.auto import tqdm
 from utils import prog_read_csv
 
 HOLD_PERIOD = 90
-RAW_DATA_NAME = '8k_data'
+RAW_DATA_NAME = '8k_data_raw'
+OUTPUT_NAME = '8k_data'
 PICKLED_YFINANCE = 'TIKR_DATA.pickle'
 
 args = ArgumentParser()
-args.add_argument('--demo', action='store_true')
-args.add_argument('-n', action='store_int')
+args.add_argument('-nsamples', '-n', action='store', default=None, type=int)
 args = args.parse_args()
 
 
@@ -332,9 +332,7 @@ def calculate_inflation(start_date, days_period, silence=True):
 
 CPI_df = pd.read_csv('CPIAUCSL.csv', parse_dates=["DATE"])
 
-
-nrows = 50 if args.demo else None
-data = prog_read_csv(f'{RAW_DATA_NAME}.tsv', sep='\t', nrows=nrows,
+data = prog_read_csv(f'{RAW_DATA_NAME}.tsv', sep='\t', nrows=args.nsamples,
                      desc='1/4 Loading Data...')
 data['Date'] = pd.to_datetime(data['Date'], format="%Y%m%d")
 
@@ -382,4 +380,4 @@ data = data.astype({'label': 'int8'})
 
 print(data.head(10))
 
-data.to_csv('8k_data_labels.tsv', sep='\t')
+data.to_csv(f'{OUTPUT_NAME}.tsv', sep='\t')
