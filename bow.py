@@ -4,9 +4,11 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 
+from utils import prog_read_csv
+
 # # vectorize
-dftrain = pd.read_csv('train.tsv', sep='\t')  # load cleaned data
-dftest = pd.read_csv('test.tsv', sep='\t')  # load cleaned data
+dftrain = prog_read_csv('train.tsv', sep='\t', desc='Loading Train Data')  # load cleaned data
+dftest = prog_read_csv('test.tsv', sep='\t', desc='Loading Test Data')  # load cleaned data
 
 vectorizer = TfidfVectorizer()
 

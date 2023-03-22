@@ -1,45 +1,28 @@
 import os
-from math import ceil
 from datetime import datetime
 import pickle
 from argparse import ArgumentParser
 
 
-from tqdm.auto import tqdm
-
 import numpy as np
 import pandas as pd
 import yfinance as yf
+from tqdm.auto import tqdm
+
+
+from utils import prog_read_csv
 
 HOLD_PERIOD = 90
-TIKR_LIST_FILE = 'tikr.txt'
+RAW_DATA_NAME = '8k_data'
 PICKLED_YFINANCE = 'TIKR_DATA.pickle'
 
 args = ArgumentParser()
 args.add_argument('--demo', action='store_true')
+args.add_argument('-n', action='store_int')
 args = args.parse_args()
 
 
-def prog_read_csv(path, **read_params):
-    """Pandas.read_csv with tqdm loading bar"""
-
-    # Estimate number of lines/chunks
-    n_lines = 0
-    with open(path, 'r') as f:
-        n_lines = len(f.readlines())
-    if 'chunksize' not in read_params or read_params['chunksize'] < 1:
-        read_params['chunksize'] = max(ceil(n_lines/1000.0), 100)
-
-    # Set up tqdm iterable
-    desc = read_params.pop('desc', None)
-    itera = tqdm(pd.read_csv(path, **read_params), total=100,
-                 desc=desc)
-
-    # Read chunks and re-assemble into frame
-    return pd.concat(itera, axis=0)
-
-
-def load_historical_data(tikrs, moving_period):
+def load_historical_company_data(tikrs, moving_period):
     '''
     Loads in historical data by tikr into a dictionary
     tikrs and calculates specified avg moving period
@@ -305,12 +288,6 @@ def get_price(tikr, date, days_after):
         return np.nan  # date too old/new or wrong format
 
 
-def load_historical_data(filename):
-    with open(filename, 'rb') as handle:
-        tikr_dict = pickle.load(handle)
-        return tikr_dict
-
-
 def output_historical_data(filename, data):
     with open(filename, 'wb') as handle:
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -353,28 +330,26 @@ def calculate_inflation(start_date, days_period, silence=True):
     return inflation_rate
 
 
-'''
-DOWNLOADS TIKR DATA TO STORE
-Only run if PICKLED_YFINANCE does not exist
-'''
-if not os.path.exists(PICKLED_YFINANCE):
-    tikrs = None
-    with open(TIKR_LIST_FILE) as f:
-        tikrs = f.read().splitlines()
-    TIKRS_dat = load_historical_data(tikrs, 7)
-    output_historical_data(PICKLED_YFINANCE, TIKRS_dat)
-
-#####################################################
-
-# loads historical dataframe from pickle file
-TIKRS_dat = load_historical_data(PICKLED_YFINANCE)
 CPI_df = pd.read_csv('CPIAUCSL.csv', parse_dates=["DATE"])
 
 
 nrows = 50 if args.demo else None
-data = prog_read_csv('8k_data.tsv', sep='\t', nrows=nrows,
+data = prog_read_csv(f'{RAW_DATA_NAME}.tsv', sep='\t', nrows=nrows,
                      desc='1/4 Loading Data...')
 data['Date'] = pd.to_datetime(data['Date'], format="%Y%m%d")
+
+'''
+DOWNLOADS TIKR DATA TO STORE, OR LOAD FROM LOCAL
+Only run if PICKLED_YFINANCE does not exist
+'''
+TIKRS_dat = None
+if not os.path.exists(PICKLED_YFINANCE):
+    tikrs = list(np.unique(data['tikr']))
+    TIKRS_dat = load_historical_company_data(tikrs, 7)
+    output_historical_data(PICKLED_YFINANCE, TIKRS_dat)
+else:
+    with open(PICKLED_YFINANCE, 'rb') as handle:
+        TIKRS_dat = pickle.load(handle)
 
 tqdm.pandas(desc='2/4 Generating Categories...', leave=False)
 data['label'] = data.progress_apply(lambda row: label_performance(
@@ -394,8 +369,8 @@ tqdm.pandas(desc='4/4 Generating Annualized Return...', leave=False)
 # Annualize the return over the investment period (7, 30, 90) day
 data[['start price',
       'end price',
-      'annualized return',
-      'sp annualized return']] = data.progress_apply(
+      'annual return',
+      'sp annual return']] = data.progress_apply(
     lambda row: generate_annualized_return(
         row['tikr'],
         row['Date'],
