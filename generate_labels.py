@@ -15,7 +15,7 @@ from utils import prog_read_csv
 HOLD_PERIOD = 90
 RAW_DATA_NAME = '8k_data_raw'
 OUTPUT_NAME = '8k_data'
-PICKLED_YFINANCE = 'TIKR_DATA.pickle'
+PICKLED_YFINANCE = 'TIKR_DATA.pkl'
 
 args = ArgumentParser()
 args.add_argument('-nsamples', '-n', action='store', default=None, type=int)
@@ -142,7 +142,8 @@ def n_days_annualized_return(
 
 
 def n_days_percent_return(
-        tikr, start_date, days_period, inflation_adjusted=False):
+        tikr, start_date, days_period, inflation_adjusted=False,
+        return_market_result=False):
     '''
     Calculates the n-day annualized return for a given TIKR and start date
 
@@ -156,7 +157,9 @@ def n_days_percent_return(
             number of trading days to include in the period
         inflation_adjusted: bool
             flag to indicate whether to adjust returns for inflation
-
+        return_market_result: bool
+            if true, will return a tuple where the second element is the
+            analogous result on the S&P500.
     Returns
         -------
         annualized_return: float
@@ -164,27 +167,32 @@ def n_days_percent_return(
     '''
     if isinstance(start_date, int):
         start_date = datetime.strptime(str(start_date), "%Y%m%d")
-    try:
-        start_date = start_date.strftime('%Y-%m-%d')
 
-        company_df = TIKRS_dat[tikr]
-        start_price = company_df[company_df['Date']
-                                 > start_date].iloc[0]['Close']
-        end_price = company_df[company_df['Date'] >
-                               start_date].iloc[days_period - 1]['Close']
+    start_date = start_date.strftime('%Y-%m-%d')
 
-        # Calculate the fractional number of years using the total number of
-        # days
-        n = days_period / 365.25  # assuming a leap year every 4 years
-        if inflation_adjusted:
-            inflation_rate = calculate_inflation(
-                start_date, days_period, silence=True)
-            return ((end_price / start_price) /
-                    (1 + inflation_rate)) - 1
-        else:
-            return (end_price / start_price) - 1
-    except BaseException:
-        return None
+    company_df = TIKRS_dat[tikr]
+    filtered_dates = company_df[company_df['Date'] > start_date]
+
+    assert len(filtered_dates) > (days_period - 1), 'days_period' \
+        'is longer than existing data'
+
+    start_price = filtered_dates.iloc[0]['Close']
+    end_price = filtered_dates.iloc[days_period - 1]['Close']
+
+    # Calculate the fractional number of years using the total number of
+    # days
+    percent_return = (end_price / start_price) - 1
+    if inflation_adjusted:
+        inflation_rate = calculate_inflation(
+            start_date, days_period, silence=True)
+        percent_return = ((end_price / start_price) /
+                          (1 + inflation_rate)) - 1
+
+    if return_market_result:
+        return percent_return, n_days_percent_return(
+            '^GSPC', start_date, days_period, inflation_adjusted,
+            return_market_result=False)
+    return percent_return
 
 
 def generate_annualized_return(tikr, start_date, n_days=[7, 30, 90],
@@ -331,53 +339,67 @@ def calculate_inflation(start_date, days_period, silence=True):
 
 
 CPI_df = pd.read_csv('CPIAUCSL.csv', parse_dates=["DATE"])
-
-data = prog_read_csv(f'{RAW_DATA_NAME}.tsv', sep='\t', nrows=args.nsamples,
-                     desc='1/4 Loading Data...')
-data['Date'] = pd.to_datetime(data['Date'], format="%Y%m%d")
-
-'''
-DOWNLOADS TIKR DATA TO STORE, OR LOAD FROM LOCAL
-Only run if PICKLED_YFINANCE does not exist
-'''
 TIKRS_dat = None
+data = None
 if not os.path.exists(PICKLED_YFINANCE):
-    tikrs = list(np.unique(data['tikr']))
+    data = prog_read_csv(f'{RAW_DATA_NAME}.tsv', sep='\t', nrows=args.nsamples,
+                         usecols='tikr', desc='Loading Data...')
+    data['Date'] = pd.to_datetime(data['Date'], format="%Y%m%d")
+    tikrs = list(np.unique(data['tikr'])) + ['^GSPC']
     TIKRS_dat = load_historical_company_data(tikrs, 7)
     output_historical_data(PICKLED_YFINANCE, TIKRS_dat)
 else:
     with open(PICKLED_YFINANCE, 'rb') as handle:
         TIKRS_dat = pickle.load(handle)
 
-tqdm.pandas(desc='2/4 Generating Categories...', leave=False)
-data['label'] = data.progress_apply(lambda row: label_performance(
-    row['tikr'], TIKRS_dat['^GSPC'], row['Date'], HOLD_PERIOD, 0.01), axis=1)
+if __name__ == '__main__':
+    if data is None:
+        data = prog_read_csv(f'{RAW_DATA_NAME}.tsv', sep='\t',
+                             nrows=args.nsamples, desc='1/4 Loading Data...')
+        data['Date'] = pd.to_datetime(data['Date'], format="%Y%m%d")
+    '''
+    DOWNLOADS TIKR DATA TO STORE, OR LOAD FROM LOCAL
+    Only run if PICKLED_YFINANCE does not exist
+    '''
+    TIKRS_dat = None
+    if not os.path.exists(PICKLED_YFINANCE):
+        tikrs = list(np.unique(data['tikr']))
+        TIKRS_dat = load_historical_company_data(tikrs, 7)
+        output_historical_data(PICKLED_YFINANCE, TIKRS_dat)
+    else:
+        with open(PICKLED_YFINANCE, 'rb') as handle:
+            TIKRS_dat = pickle.load(handle)
 
-print(data['label'].value_counts())
+    tqdm.pandas(desc='2/4 Generating Categories...', leave=False)
+    data['label'] = data.progress_apply(lambda row: label_performance(
+        row['tikr'], TIKRS_dat['^GSPC'], row['Date'], HOLD_PERIOD, 0.01), axis=1)
 
-tqdm.pandas(desc='3/4 Generating Percent Return...', leave=False)
-# Annualize the return over the investment period (7, 30, 90) day
-data['percent return'] = data.progress_apply(lambda row: n_days_percent_return(
-    row['tikr'],
-    row['Date'],
-    days_period=HOLD_PERIOD,
-    inflation_adjusted=True), axis=1)
+    print(data['label'].value_counts())
 
-tqdm.pandas(desc='4/4 Generating Annualized Return...', leave=False)
-# Annualize the return over the investment period (7, 30, 90) day
-data[['start price',
-      'end price',
-      'annual return',
-      'sp annual return']] = data.progress_apply(
-    lambda row: generate_annualized_return(
-        row['tikr'],
-        row['Date'],
-        n_days=[HOLD_PERIOD],
-        inflation_adjusted=True), axis=1, result_type="expand")
+    tqdm.pandas(desc='3/4 Generating Percent Return...', leave=False)
+    # Annualize the return over the investment period (7, 30, 90) day
+    data['percent return'] = data.progress_apply(
+        lambda row: n_days_percent_return(
+            row['tikr'],
+            row['Date'],
+            days_period=HOLD_PERIOD,
+            inflation_adjusted=True), axis=1)
 
-data = data.dropna()
-data = data.astype({'label': 'int8'})
+    tqdm.pandas(desc='4/4 Generating Annualized Return...', leave=False)
+    # Annualize the return over the investment period (7, 30, 90) day
+    data[['start price',
+          'end price',
+          'annual return',
+          'sp annual return']] = data.progress_apply(
+        lambda row: generate_annualized_return(
+            row['tikr'],
+            row['Date'],
+            n_days=[HOLD_PERIOD],
+            inflation_adjusted=True), axis=1, result_type="expand")
 
-print(data.head(10))
+    data = data.dropna()
+    data = data.astype({'label': 'int8'})
 
-data.to_csv(f'{OUTPUT_NAME}.tsv', sep='\t')
+    print(data.head(10))
+
+    data.to_csv(f'{OUTPUT_NAME}.tsv', sep='\t')
