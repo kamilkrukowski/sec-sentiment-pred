@@ -1,30 +1,57 @@
 from math import ceil
 from tqdm.auto import tqdm
 from typing import List, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 import pandas as pd
 import numpy as np
 
+from metrics import Metrics
+
 
 def prog_read_csv(path, **read_params):
     """Pandas.read_csv with tqdm loading bar"""
 
-    # Estimate number of lines/chunks
+    # Estimate number of lines/chunks if not present in kwargs
     n_lines = 0
-    with open(path, 'r') as f:
-        n_lines = len(f.readlines())
+    if 'nrows' in read_params and read_params['nrows'] is not None:
+        n_lines = read_params['nrows']
+    else:
+        with open(path, 'r') as f:
+            n_lines = len(f.readlines())
+
+    total_reads = None
     if 'chunksize' not in read_params or read_params['chunksize'] < 1:
-        read_params['chunksize'] = max(ceil(n_lines/100.0), 100)
+        if 'nrows' in read_params and read_params['nrows'] is not None:
+            n_lines = read_params['nrows']
+        chunk = max(ceil(n_lines / 100.0), 100)
+        chunk = min(chunk, n_lines)
+        total_reads = ceil(n_lines / chunk)
+        read_params['chunksize'] = chunk
 
     # Set up tqdm iterable
     desc = read_params.pop('desc', None)
-    itera = tqdm(pd.read_csv(path, **read_params), total=100,
+    itera = tqdm(pd.read_csv(path, **read_params), total=total_reads,
                  desc=desc)
 
     # Read chunks and re-assemble into frame
-    return pd.concat(itera, axis=0)
+    out = pd.concat(itera, axis=0)
+
+    if 'Date' in out.columns:
+        elem_ = out.Date.iloc[0]
+        if isinstance(elem_, float):
+            elem_ = str(elem_)
+        elif isinstance(elem_, int):
+            elem_ = str(elem_)
+        if isinstance(elem_, str):
+            if len(elem_) == 10:
+                out['Date'] = pd.to_datetime(out['Date'], format="%Y-%m-%d")
+            elif len(elem_) == 8:
+                out['Date'] = pd.to_datetime(out['Date'], format="%Y%m%d")
+
+    return out
+
 
 def datasplit_dframe(frame, split=[0.8, 0.2]):
     """Conduct a train/test/dev split on a dataframe after shuffle."""
@@ -33,7 +60,7 @@ def datasplit_dframe(frame, split=[0.8, 0.2]):
     lens = []
     total = len(frame)
     for perc in split[:-1]:
-        lens.append(int(perc*total))
+        lens.append(int(perc * total))
 
     idxs = []
     for start, stop in zip([None] + lens, lens + [None]):
@@ -44,49 +71,103 @@ def datasplit_dframe(frame, split=[0.8, 0.2]):
         output.append(frame.iloc[idxs_])
     return tuple(output)
 
-def chronosort(dates: List[datetime], arr: List[Any],
-               start_date: datetime = None, end_date: datetime = None):
-    """Sort dates and arr in-place by dates, remove all
-    entries before start_date or after end_date."""
 
-    if type(start_date) is str:
-        start_date = datetime.strptime(start_date, '%Y%m%d')
+def get_tikr_indices_file(tikr: str, dfpath,
+                          progbar=True, **kwargs) -> List[int]:
+    """Return what rows in DF correspond to tikr in column tikr."""
+    df = None
+    if progbar:
+        df = prog_read_csv(dfpath, usecols=['tikr'],
+                           desc='Getting TIKR indices', **kwargs)
+    else:
+        df = pd.read_csv(dfpath, usecols=['tikr'], **kwargs)
 
-    if type(end_date) is str:
-        end_date = datetime.strptime(end_date, '%Y%m%d')
+    mask = np.array(df) == tikr
+    idxs = np.nonzero(mask)[0]
+    return idxs
 
-    dates = np.array(dates)
-    arr = np.array(arr)
 
-    sort_idxs = np.argsort(dates)
-    arr = arr[sort_idxs]
-    dates = dates[sort_idxs]
+class ChronoYearly():
+    """Cross-validation data split generator. Generates 1-year period test set splits."""
 
-    if start_date is not None or end_date is not None:
-        dates = list(dates)
-        arr = list(arr)
+    def __init__(self, df, period_length=365, periods_to_test=5, verbose=True):
 
-        if start_date is not None:
-            dates.insert(0, start_date)
-            arr.insert(0, -999)
-        elif end_date is not None:
-            dates.insert(1, end_date)
-            arr.insert(1, -999)
+        self._min_date = datetime(year=min(df.Date).year, month=1, day=1)
+        self._max_date = datetime(year=max(df.Date).year, month=12, day=31)
+        number_periods = self._max_date.year - self._min_date.year + 1
 
-    sort_idxs = list(np.argsort(dates))
+        assert periods_to_test < number_periods, 'Not enough historical data'
 
-    start_idx = None
-    end_idx = None
+        if verbose:
+            print(f"Across {number_periods} years, "
+                  f"train on {number_periods-periods_to_test} "
+                  f"with 1-year duration testing on {periods_to_test} "
+                  "different years")
 
-    if start_date is not None:
-        start_idx = sort_idxs.index(0) + 1  # We exclude our dummy entry
+        self.df = df
+        self._idx = 0
+        self.periods_to_test = periods_to_test - 1
+        self.period_length = period_length
 
-    if end_date is not None:
-        end_idx = sort_idxs.index(1)
+    def __iter__(self):
+        self.idx_ = 0
+        return self
 
-    dates = np.array(dates)
-    arr = np.array(arr)
-    dates = dates[sort_idxs][start_idx:end_idx]
-    arr = arr[sort_idxs][start_idx:end_idx]
+    def __next__(self):
+        if self._idx == self.periods_to_test:
+            self._idx = 0
+            raise StopIteration
+        start_date = datetime(
+            year=self._min_date.year +
+            self._idx,
+            month=1,
+            day=1)
+        end_date = datetime(
+            year=self._max_date.year -
+            self.periods_to_test + self._idx + 1,
+            month=12,
+            day=31)
+        boundary = end_date - timedelta(self.period_length)
 
-    return dates, arr
+        out = self.df
+        out = out[out.Date >= start_date]
+        out = out[out.Date <= end_date]
+
+        train = out[out.Date <= boundary]
+        test = out[out.Date > boundary]
+
+        self._idx += 1
+    
+        return train, test
+
+
+def generate_data_splits(df, strategy='chronological_yearly', periods_to_test=5,
+                         period_length=365, verbose=True):
+
+    if strategy == 'chronological_yearly':
+        return ChronoYearly(
+            df, period_length=period_length, periods_to_test=periods_to_test, verbose=verbose)
+
+def subsample_yearly(df, n=1000):
+    min_date = datetime(year=min(df.Date).year, month=1, day=1)
+    max_date = datetime(year=max(df.Date).year, month=12, day=31)
+
+    out = []
+    for year in range(min_date.year, max_date.year+1):
+        start_date = datetime(
+            year=year,
+            month=1,
+            day=1)
+        end_date = datetime(
+            year=year,
+            month=12,
+            day=31)
+
+        curr_ = df
+        curr_ = curr_[curr_.Date >= start_date]
+        curr_ = curr_[curr_.Date <= end_date]
+
+        n_ = min(len(curr_), n)
+        out.append(curr_.sample(n_).copy())
+
+    return pd.concat(out, axis=0)
