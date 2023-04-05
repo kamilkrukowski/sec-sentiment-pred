@@ -8,8 +8,8 @@ from dataloading import HistoricalYahoo, calculate_metrics, get_reference_data
 from bow import GET_BOW_RESULTS
 from model import GET_FFNBOW_RESULTS
 
-INPUT_DATA_NAME = '8K_data_short.tsv'
-#INPUT_DATA_NAME = '8K_data.tsv'
+# INPUT_DATA_NAME = '8K_data_short.tsv'
+INPUT_DATA_NAME = '8K_data.tsv'
 PICKLED_YFINANCE = 'TIKR_DATA.pkl'
 HOLD_PERIOD=90
 
@@ -97,6 +97,11 @@ def plot_rocs(metrics):
         x, y = mets['_test_ROC']
         auroc = mets['test_auroc']
         axes[idx].plot(x, y, label=f'test {auroc:.3f} AUC')
+
+        x, y = mets['_validation_ROC']
+        auroc = mets['validation_auroc']
+        axes[idx].plot(x, y, label=f'test {auroc:.3f} AUC')
+
         x, y = mets['_train_ROC']
         auroc = mets['train_auroc']
         axes[idx].plot(x, y, label=f'train {auroc:.3f} AUC')

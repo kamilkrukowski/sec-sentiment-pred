@@ -438,12 +438,14 @@ def get_reference_data(data, yd, cols=['Outlook'],
 
     def applyfunc_backfill(row, innames):
         df = yd[row['tikr']]
+        # print(row['tikr'])
         # Backfill finds nearest trading date after news release
         indexer = df.index.get_indexer([row['Date']], method='backfill')
         entry = df.iloc[indexer]
         return entry[innames].values[0, :]
 
     def applyfunc_no_backfill(row, innames):
+        # print(row['tikr'])
         df = yd[row['tikr']]
         # Backfill finds nearest trading date after news release
         indexer = df.index.get_indexer([row['Date']])
