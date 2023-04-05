@@ -9,7 +9,6 @@ import numpy as np
 
 from metrics import Metrics
 
-
 def prog_read_csv(path, **read_params):
     """Pandas.read_csv with tqdm loading bar"""
 
@@ -171,3 +170,6 @@ def subsample_yearly(df, n=1000):
         out.append(curr_.sample(n_).copy())
 
     return pd.concat(out, axis=0)
+
+
+
