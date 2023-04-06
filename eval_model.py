@@ -72,11 +72,12 @@ for idx, (train_val_df, testdf) in enumerate(
 
         temp_df = pd.DataFrame()
         temp_df[['label', 'pred', 'score']] = out[['label', 'pred', 'score']]
+        temp_df['pred'] = temp_df['pred'].astype(int)
         temp_df['year'] = [metrics.year]*len(out)
         temp_df['k'] = [k+1]*len(out)
         output_df = pd.concat([output_df, temp_df])
 
-output_df.reset_index().to_csv(f'model_outputs/testset_output_{model_savepath}.csv')
+output_df.reset_index(drop=True).to_csv(f'model_outputs/outputs_{model_savepath}.csv')
 """
 out = out[out.beta != -999]
 
@@ -101,113 +102,3 @@ cols = ['Date', 'label', 'pred', 'score', 'tikr']
 out[cols].to_csv('results_bow.tsv', sep='\t')
 """""
 
-
-if not os.path.exists('figs'):
-            os.makedirs('figs')
-def plot_rocs(metrics):
-
-    n = len(metrics)
-    fig, axes = plt.subplots(1, n, figsize=(n*3, 3))
-    fig.suptitle('ROC Curves')
-    for idx, mets, in enumerate(metrics):
-        x, y = mets['_test_ROC']
-        auroc = mets['test_auroc']
-        axes[idx].plot(x, y, label=f'test {auroc:.3f} AUC')
-        x, y = mets['_train_ROC']
-        auroc = mets['train_auroc']
-        axes[idx].plot(x, y, label=f'train {auroc:.3f} AUC')
-        
-        x, y = mets['_validation_ROC']
-        auroc = mets['validation_auroc']
-        axes[idx].plot(x, y, label=f'validation {auroc:.3f} AUC')
-        
-        axes[idx].plot(x, x, 'r-.')
-        if(mets.k):
-            axes[idx].set_xlabel(f'{mets.year}, k = {mets.k}')
-        else:
-            axes[idx].set_xlabel(f'{mets.year}')
-        axes[idx].legend()
-    fig.tight_layout()
-    plt.savefig('figs/fig1.png')
-    plt.clf()
-
-    fig, axes = plt.subplots(1, len(metrics), figsize=(n*3, 3))
-    fig.suptitle('Precision Recall Curves')
-    for idx, mets, in enumerate(metrics):
-        x, y = mets['_test_PRC']
-        axes[idx].plot(x, y, label='test')
-        x, y = mets['_validation_PRC']
-        axes[idx].plot(x, y, label='validation')
-        x, y = mets['_train_PRC']
-        axes[idx].plot(x, y, label='train')
-        if(mets.k):
-            axes[idx].set_xlabel(f'{mets.year}, k = {mets.k}')
-        else:
-            axes[idx].set_xlabel(f'{mets.year}')
-    fig.tight_layout()
-    plt.savefig('figs/fig2.png')
-    plt.clf()
-
-plot_rocs(all_metrics)
-
-
-
-def organize_metrics(metrics):
-    year_dict = {}
-    for mets in metrics:
-        annual_stats = defaultdict(list)
-        if mets.year not in year_dict:
-            year_dict[mets.year] = annual_stats
-        
-        for m in mets:
-            year_dict[mets.year][m].append(mets[m])
-
-    return year_dict
-
-def boxplot(metrics_dict, names, save_path=None):
-    n_years = len(metrics_dict)
-    n_names = len(names)
-    fig, axes = plt.subplots(n_names, n_years, figsize=(n_years*5, n_names*6))
-    fig.tight_layout()
-    fig.subplots_adjust(left=0.1, bottom=0.1, right=0.95, top=0.9, wspace=0.2, hspace=0.4)
-    colors = sns.color_palette(n_colors=n_names)
-    k = 0
-    for i, name in enumerate(names):
-        for j, year in enumerate(metrics_dict):
-            if not metrics_dict[year][name]:
-                raise KeyError(f'{name} does not exist in provided metrics')
-            sns.boxplot(metrics_dict[year][name], ax=axes[i, j], orient='vertical', palette=[colors[i]], showmeans=True)
-            k = len(metrics_dict[year][name])
-            axes[i, j].set_title(year)
-            if j == 0:
-                axes[i, j].set_ylabel(name)
-    fig.suptitle(f'K-fold Metrics for K = {k}')
-    if save_path:
-        plt.savefig(f'{save_path}_boxplot.png')
-    else:
-        plt.savefig('figs/boxplot.png')
-
-boxplot(organize_metrics(all_metrics), 
-    names = ["train_auroc", "validation_auroc", "test_auroc"], save_path="figs/short_data_auroc")
-
-boxplot(organize_metrics(all_metrics), 
-    names = ["_train_acc_pos", "_validation_acc_pos", "_test_acc_pos"], save_path="figs/short_data_accuracy")
-
-def print_evaluation_summary(metrics_dict, names):
-    year_summary = {}
-    for year in metrics_dict:
-        year_summary.setdefault(year, {})
-        for name in names:
-            year_summary[year][f'{name}_average'] = np.mean(metrics_dict[year][name])
-            year_summary[year][f'{name}_min'] = np.min(metrics_dict[year][name])
-            year_summary[year][f'{name}_max'] = np.max(metrics_dict[year][name])
-    
-    for year in year_summary:
-        print(year)
-        for val in year_summary[year]:
-            print(f'{val}: {np.round(year_summary[year][val], 3)}')
-        print('\n')
-    return year_summary
-
-print_evaluation_summary(organize_metrics(all_metrics),
-    names=["_train_acc_pos", "_validation_acc_pos", "_test_acc_pos"])
