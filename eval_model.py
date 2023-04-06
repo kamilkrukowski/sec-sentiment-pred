@@ -20,8 +20,9 @@ HOLD_PERIOD=90
 
 EVAL_YEAR = 2018
 EVAL_YEAR = datetime.strptime(str(EVAL_YEAR) + '0101', '%Y%m%d')
+model_savepath = 'test1'
 
-K = 5
+K = 3
 # Load data
 keys = ['text', 'label', 'Date', 'tikr']
 data = prog_read_csv(INPUT_DATA_NAME, sep='\t',
@@ -37,6 +38,7 @@ strategy = 'chronological_yearly'
 model = GET_BOW_RESULTS
 # model = GET_FFNBOW_RESULTS
 all_metrics = []
+output_df = pd.DataFrame()
 N_YEARS = 2023-EVAL_YEAR.year+1
 for idx, (train_val_df, testdf) in enumerate(
             generate_data_splits(data, strategy=strategy,
@@ -68,29 +70,36 @@ for idx, (train_val_df, testdf) in enumerate(
 
         get_reference_data(out, yd, cols=['Annual Return', 'beta', 'sp Annual', 'sp Percent'])
 
-        """
-        out = out[out.beta != -999]
+        temp_df = pd.DataFrame()
+        temp_df[['label', 'pred', 'score']] = out[['label', 'pred', 'score']]
+        temp_df['year'] = [metrics.year]*len(out)
+        temp_df['k'] = [k+1]*len(out)
+        output_df = pd.concat([output_df, temp_df])
 
-        any_adv_ = (out['Annual Return'] - out['sp Annual']).mean()
-        any_alph = ((out['Annual Return'] - out['sp Annual'])/out['beta']).mean()
+output_df.reset_index().to_csv(f'model_outputs/testset_output_{model_savepath}.csv')
+"""
+out = out[out.beta != -999]
 
-        out_ = out[out.pred == 1]
-        pos_adv_ = (out_['Annual Return'] - out_['sp Annual']).mean()
-        pos_alph = ((out_['Annual Return'] - out_['sp Annual'])/out_['beta']).mean()
+any_adv_ = (out['Annual Return'] - out['sp Annual']).mean()
+any_alph = ((out['Annual Return'] - out['sp Annual'])/out['beta']).mean()
 
-        print(f"Any: Return: {out['Annual Return'].mean():.2f}, S&P500: {out['sp Annual'].mean():.2f}"
-            f" Beta: {out['beta'].mean():.2f}")
-        print(f"Pos: Return: {out_['Annual Return'].mean():.2f}, S&P500: {out_['sp Annual'].mean():.2f}"
-            f" Beta: {out_['beta'].mean():.2f}")
+out_ = out[out.pred == 1]
+pos_adv_ = (out_['Annual Return'] - out_['sp Annual']).mean()
+pos_alph = ((out_['Annual Return'] - out_['sp Annual'])/out_['beta']).mean()
 
-        sharpe_sp = out['sp Annual'].mean()/out['sp Annual'].std() 
-        sharpe_any = out['Annual Return'].mean()/out['Annual Return'].std() 
-        sharpe_pos = out_['Annual Return'].mean()/out_['Annual Return'].std() 
-        print(f"Sharpe Ratios: S&P500: {sharpe_sp:.2f} Any: {sharpe_any:.2f} Pos: {sharpe_pos:.2f}")
+print(f"Any: Return: {out['Annual Return'].mean():.2f}, S&P500: {out['sp Annual'].mean():.2f}"
+    f" Beta: {out['beta'].mean():.2f}")
+print(f"Pos: Return: {out_['Annual Return'].mean():.2f}, S&P500: {out_['sp Annual'].mean():.2f}"
+    f" Beta: {out_['beta'].mean():.2f}")
 
-        cols = ['Date', 'label', 'pred', 'score', 'tikr']
-        out[cols].to_csv('results_bow.tsv', sep='\t')
-        """""
+sharpe_sp = out['sp Annual'].mean()/out['sp Annual'].std() 
+sharpe_any = out['Annual Return'].mean()/out['Annual Return'].std() 
+sharpe_pos = out_['Annual Return'].mean()/out_['Annual Return'].std() 
+print(f"Sharpe Ratios: S&P500: {sharpe_sp:.2f} Any: {sharpe_any:.2f} Pos: {sharpe_pos:.2f}")
+
+cols = ['Date', 'label', 'pred', 'score', 'tikr']
+out[cols].to_csv('results_bow.tsv', sep='\t')
+"""""
 
 
 if not os.path.exists('figs'):
