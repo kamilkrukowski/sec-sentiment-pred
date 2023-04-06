@@ -4,6 +4,7 @@ from datetime import datetime
 from sklearn.model_selection import KFold
 import seaborn as sns 
 from collections import defaultdict
+import numpy as np
 import os
 
 
@@ -182,3 +183,22 @@ boxplot(organize_metrics(all_metrics),
 
 boxplot(organize_metrics(all_metrics), 
     names = ["_train_acc_pos", "_validation_acc_pos", "_test_acc_pos"], save_path="figs/short_data_accuracy")
+
+def print_evaluation_summary(metrics_dict, names):
+    year_summary = {}
+    for year in metrics_dict:
+        year_summary.setdefault(year, {})
+        for name in names:
+            year_summary[year][f'{name}_average'] = np.mean(metrics_dict[year][name])
+            year_summary[year][f'{name}_min'] = np.min(metrics_dict[year][name])
+            year_summary[year][f'{name}_max'] = np.max(metrics_dict[year][name])
+    
+    for year in year_summary:
+        print(year)
+        for val in year_summary[year]:
+            print(f'{val}: {np.round(year_summary[year][val], 3)}')
+        print('\n')
+    return year_summary
+
+print_evaluation_summary(organize_metrics(all_metrics),
+    names=["_train_acc_pos", "_validation_acc_pos", "_test_acc_pos"])
