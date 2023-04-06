@@ -77,6 +77,8 @@ for idx, (train_val_df, testdf) in enumerate(
         temp_df['k'] = [k+1]*len(out)
         output_df = pd.concat([output_df, temp_df])
 
+if not os.path.exists('figs'):
+    os.makedirs('model_outputs')
 output_df.reset_index(drop=True).to_csv(f'model_outputs/outputs_{model_savepath}.csv')
 """
 out = out[out.beta != -999]
