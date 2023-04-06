@@ -71,7 +71,8 @@ for idx, (train_val_df, testdf) in enumerate(
         get_reference_data(out, yd, cols=['Annual Return', 'beta', 'sp Annual', 'sp Percent'])
 
         temp_df = pd.DataFrame()
-        temp_df[['label', 'pred', 'score']] = out[['label', 'pred', 'score']]
+        temp_df[['tikr', 'Date','label', 'pred', 'score']] = out[['tikr', 'Date','label', 'pred', 'score']]
+
         temp_df['pred'] = temp_df['pred'].astype(int)
         temp_df['year'] = [metrics.year]*len(out)
         temp_df['k'] = [k+1]*len(out)
