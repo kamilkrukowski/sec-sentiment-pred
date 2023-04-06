@@ -1,6 +1,12 @@
 import torch.nn as nn
 import numpy as np
 import torch
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics import roc_auc_score
+from torch.utils.data import DataLoader, Dataset
+from tqdm.auto import tqdm
+
+from metrics import Metrics
 
 N_EPOCHS = 50
 
@@ -21,17 +27,20 @@ class BOW(torch.nn.Module):
     def forward(self, x):
         return self.ffn(x)
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-import pandas as pd
-from sklearn.model_selection import train_test_split
+class MyDataset(Dataset):
 
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.feature_extraction.text import TfidfTransformer
-from sklearn.pipeline import Pipeline
+  def __init__(self, df):
 
-# # vectorize
-df = pd.read_csv('train.csv') # load cleaned data
+    self.x = df['text']
+    self.y = torch.tensor(df['label'].values, dtype=torch.long) 
 
+  def __len__(self):
+    return len(self.y)
+  
+  def __getitem__(self, idx):
+    return self.x.iloc[idx], self.y[idx]
+
+"""
 LM_dict = pd.read_csv('LM_dict.csv',keep_default_na=False)
 #create vocab from LM dict
 vocab = dict()
@@ -43,32 +52,77 @@ pipe = Pipeline([('count', CountVectorizer(vocabulary=vocab)),
 X = pipe.transform(df['text'])
 sort_index = np.argsort(X.toarray().sum(axis = 0))# ascending
 new_vocab = pipe['count'].get_feature_names_out()[sort_index[-2000:]]#take top 500 vocab
+"""
 
-vectorizer = TfidfVectorizer() #pass new_vocab if desired
-x_train, x_test, y_train, y_test = train_test_split(df['text'], df['label'], test_size=0.25, random_state=42)
-x_train = vectorizer.fit_transform(x_train)
-x_test = vectorizer.transform(x_test)
+def GET_FFNBOW_RESULTS(dftrain, dfval, dftest, threshold=0.9, out_inplace=False):
 
-x_train = torch.Tensor(x_train.todense())
-y_train = torch.Tensor(np.array(y_train)).long()
-x_test = torch.Tensor(x_test.todense())
-y_test = torch.Tensor(np.array(y_test)).long()
+    print("Fitting vectorizer")
+    vectorizer = TfidfVectorizer(min_df=20, max_df=0.8, max_features=20000)  # pass new_vocab if desired
+    vectorizer.fit(dftrain['text'])
+    print("vectorizer fit")
 
-model = BOW(x_train.shape[1])
-optim = torch.optim.Adam(model.parameters(), weight_decay=2e-3)
+    model = BOW(vectorizer.transform(dftest['text'].iloc[0:3]).shape[1])
+    optim = torch.optim.Adam(model.parameters(), weight_decay=2e-3)
 
-def accuracy(logits, y):
-    y_hat = torch.argmax(logits, dim=1)
-    return (sum(y_hat==y)/len(y)).detach().item()
+    train_dataloader = DataLoader(
+                        MyDataset(dftrain), batch_size=512, shuffle=True)
+    val_dataloader = DataLoader(
+                        MyDataset(dftest), batch_size=len(dfval),
+                        shuffle=True)
+    test_dataloader = DataLoader(
+                        MyDataset(dftest), batch_size=len(dftest),
+                        shuffle=True)
 
-for epoch in range(N_EPOCHS):
-    y_hat = model(x_train)
+    x_test, y_test = next(iter(test_dataloader))
+    x_test = torch.tensor(vectorizer.transform(x_test).todense()).float()
 
-    loss = torch.nn.functional.cross_entropy(y_hat, y_train)
+    x_val, y_val = next(iter(val_dataloader))
+    x_val = torch.tensor(vectorizer.transform(x_test).todense()).float()
 
-    optim.zero_grad()
-    loss.backward()
-    optim.step()
-    print(f"Loss: {loss.detach().item():.2f}, \
-            Train Acc: {accuracy(y_hat, y_train)*100:.2f} \
-            Test Acc: {accuracy(model(x_test), y_test)*100:.2f}")
+    
+    metrics = Metrics()
+
+    for epoch in range(N_EPOCHS):
+        print(f"Epoch: {epoch}")
+        for x_train, y_train in tqdm(train_dataloader, desc='Epoching'):
+            x_train = torch.tensor(
+                        vectorizer.transform(x_train).todense()).float()
+            y_hat = model(x_train)
+
+            loss = torch.nn.functional.cross_entropy(y_hat, y_train)
+
+            optim.zero_grad()
+            loss.backward()
+            optim.step()
+
+        with torch.no_grad():
+            t = model(x_test)
+            class_ = 1
+            y = np.array(y_test) == class_
+            y_hat = np.array(t)[:, class_]
+            auroc = roc_auc_score(y, y_hat)
+            print(f"test auroc: {auroc:.3f}")
+
+    yhat_test = model(x_test)
+    yhat_val = model(x_val)
+    yhat_train = model(x_train)
+
+    metrics.calculate(y_test, yhat_test, split='test')
+    metrics.calculate(y_val, yhat_val, split='validation')
+    metrics.calculate(y_train, yhat_train, split='train')
+
+    scores = model(x_test)
+    pos_scores = scores[:, 1]
+    preds = pos_scores > np.percentile(pos_scores, int(threshold*100))
+
+    out = dftest
+    if not out_inplace:
+        out = out.copy()
+
+    out['pred'] = preds
+    out['score'] = pos_scores
+
+    if not out_inplace:
+        out.drop('text', axis=1)
+
+    return out, metrics

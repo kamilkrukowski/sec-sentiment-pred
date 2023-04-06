@@ -14,3 +14,10 @@ conda create -n sectagging -c conda-forge -c anaconda python=3.10 pytorch scipy 
 conda activate sectagging
 pip install edgar-doc-parser==0.2.2.post1
 ```
+## Pipeline
+
+Use ```generate_data.py``` to make ```8k_data_raw.tsv```
+Use ```filter.py``` on ```8k_data_raw.tsv``` to make ```8k_data_filtered.tsv```
+Use ```dataloading.py``` on ```8k_data_filtered.tsv``` to make ```8k_data.tsv```, the final version
+
+For test runs, use ```generate_short.py``` on ```8k_data.tsv``` to make ```8k_data_short.tsv```

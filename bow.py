@@ -1,62 +1,46 @@
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
-import pandas as pd
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
 
-from utils import prog_read_csv
-
-# # vectorize
-dftrain = prog_read_csv('train.tsv', sep='\t', desc='Loading Train Data')  # load cleaned data
-dftest = prog_read_csv('test.tsv', sep='\t', desc='Loading Test Data')  # load cleaned data
-
-vectorizer = TfidfVectorizer()
-
-X_train, y_train = dftrain['text'], dftrain['label']
-X_test, y_test = dftest['text'], dftest['label']
-
-X_train = vectorizer.fit_transform(X_train)
-X_test = vectorizer.transform(X_test)
-
-clf = LogisticRegression(random_state=1).fit(X_train, y_train)
-
-total_test = len(y_test)
-total_train = len(y_train)
-for idx, label in enumerate(['negative', 'positive', 'neutral']):
-    prop_train = sum(y_train == idx)/total_train
-    prop_test = sum(y_test == idx)/total_test
-    print(f"{label} - test: {prop_test:0.4f}, train: {prop_train:0.4f}")
+from metrics import Metrics
 
 
-def auroc(labels, predictions, average='best'):
-    aucs = []
-    for i in range(3):
-        aucs.append(roc_auc_score(labels == i, predictions[:, i]))
+def GET_BOW_RESULTS(dftrain, dfval, dftest, threshold=0.9, out_inplace=False):
 
-    if average == 'macro':
-        return sum(aucs)/3
-    if average == 'best':
-        return aucs[1]
-    if average is None:
-        return aucs
+    x_train, y_train = dftrain['text'], dftrain['label']
+    x_test, y_test = dftest['text'], dftest['label']
+    x_val, y_val = dfval['text'], dfval['label']
 
+    vectorizer = TfidfVectorizer(min_df=20, max_df=0.8)
 
-def acc(labels, predictions, average='macro'):
-    accs = []
-    for i in range(3):
-        idxs = labels == i
-        accs.append(sum(labels[idxs] == np.argmax(
-            predictions[idxs], axis=1))/sum(idxs))
+    x_train = vectorizer.fit_transform(x_train)
+    x_test = vectorizer.transform(x_test)
+    x_val = vectorizer.transform(x_val)
 
-    if average == 'macro':
-        return sum(accs)/3
-    if average == 'best':
-        return accs[1]
-    if average is None:
-        return accs
+    clf = LogisticRegression(C=1.0, random_state=1).fit(x_train, y_train)
 
+    yhat_test = clf.predict_proba(x_test)
+    yhat_val = clf.predict_proba(x_val)
+    yhat_train = clf.predict_proba(x_train)
 
-print(f"test auroc: {auroc(y_test, clf.predict_proba(X_test)):.3f}")
-print(f"train auroc: {auroc(y_train, clf.predict_proba(X_train)):.3f}")
-print(f"test acc: {acc(y_test, clf.predict_proba(X_test)):.3f}")
-print(f"train acc: {acc(y_train, clf.predict_proba(X_train)):.3f}", )
+    metrics = Metrics()
+    metrics['Train features'] = int(x_train.shape[1])
+    metrics.calculate(y_test, yhat_test, split='test')
+    metrics.calculate(y_val, yhat_val, split='validation')
+    metrics.calculate(y_train, yhat_train, split='train')
+    
+    scores = clf.predict_proba(x_test)
+    pos_scores = scores[:, 1]
+    preds = pos_scores > np.percentile(pos_scores, int(threshold*100))
+
+    out = dftest
+    if not out_inplace:
+        out = out.copy()
+
+    out['pred'] = preds
+    out['score'] = pos_scores
+
+    if not out_inplace:
+        out.drop('text', axis=1)
+
+    return out, metrics
