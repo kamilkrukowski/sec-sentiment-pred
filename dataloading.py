@@ -488,6 +488,17 @@ def calculate_metrics(yd, hold_period, dropna=False, silent=False):
                        desc='Generating Daily Returns')
     add_betas(yd, 365, silent=silent)
 
+def calculate_alpha(row, rf):
+    #find the rf and rm - rf that is closest to trading date
+    rf, rm_rf  = rf[rf['Date']>=row['Date']].iloc[0][["RF","Mkt-RF"]]
+    
+    # rp is percent return
+    rp = row["Percent Return"] 
+    # alpha = rp - [rf + B * (rm - rf)]
+    B = row["beta"]
+    if(rp == -999 or B == -999):
+        return -999
+    return rp - rf + B * rm_rf
 
 HOLD_PERIOD = 90
 RAW_DATA_NAME = '8k_data_filtered'
@@ -535,9 +546,20 @@ if __name__ == '__main__':
         backfill=False)
     data.rename(columns={'Outlook': 'label'}, inplace=True)
     data['Trading Date'] = data['Date']
-    data.label.value_counts()
+
 
     yd.cache()
     print("Sort by Date and Offload Results")
     data.sort_values(
         by='Date', ascending=False).to_csv(OUTPUT_NAME + '.tsv', sep='\t')
+
+    # adding beta
+    get_reference_data(data, yd, cols=['beta'])
+    rf_info = pd.read_csv("Risk_free_rate.csv", parse_dates = ["Date"])
+
+    # adding alpha
+    alpha = data.progress_apply(lambda x: calculate_alpha(x, rf_info), axis=1, result_type='expand')
+    data["alpha"] = pd.DataFrame(alpha)
+    print(data)
+
+
