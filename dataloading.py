@@ -38,7 +38,7 @@ class HistoricalYahoo(UserDict):
                 return None
         return super().__getitem__(key)
 
-    def preload_tikrs(self, data):
+    def preload_tikrs(self, data, bar=True, desc='Downloading Tikrs'):
         """
         Preload tikrs onto self from dataframe.
         Will delete all tikrs from dataframe that are too short for self.

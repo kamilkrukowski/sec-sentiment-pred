@@ -36,23 +36,10 @@ class MyDataset(Dataset):
 
   def __len__(self):
     return len(self.y)
-  
+
   def __getitem__(self, idx):
     return self.x.iloc[idx], self.y[idx]
 
-"""
-LM_dict = pd.read_csv('LM_dict.csv',keep_default_na=False)
-#create vocab from LM dict
-vocab = dict()
-for index, row in LM_dict.iterrows():
-    word = row['Word'].lower()
-    vocab[word] = index
-pipe = Pipeline([('count', CountVectorizer(vocabulary=vocab)),
-                 ('tfid', TfidfTransformer())]).fit(df['text'])# tfidf on 86000 vocab
-X = pipe.transform(df['text'])
-sort_index = np.argsort(X.toarray().sum(axis = 0))# ascending
-new_vocab = pipe['count'].get_feature_names_out()[sort_index[-2000:]]#take top 500 vocab
-"""
 
 def GET_FFNBOW_RESULTS(dftrain, dfval, dftest, threshold=0.9, out_inplace=False):
 
@@ -67,7 +54,7 @@ def GET_FFNBOW_RESULTS(dftrain, dfval, dftest, threshold=0.9, out_inplace=False)
     train_dataloader = DataLoader(
                         MyDataset(dftrain), batch_size=512, shuffle=True)
     val_dataloader = DataLoader(
-                        MyDataset(dftest), batch_size=len(dfval),
+                        MyDataset(dfval), batch_size=512,
                         shuffle=True)
     test_dataloader = DataLoader(
                         MyDataset(dftest), batch_size=len(dftest),
@@ -96,12 +83,15 @@ def GET_FFNBOW_RESULTS(dftrain, dfval, dftest, threshold=0.9, out_inplace=False)
             optim.step()
 
         with torch.no_grad():
-            t = model(x_test)
-            class_ = 1
-            y = np.array(y_test) == class_
-            y_hat = np.array(t)[:, class_]
-            auroc = roc_auc_score(y, y_hat)
-            print(f"test auroc: {auroc:.3f}")
+            for x_val, y_val in tqdm(train_dataloader, desc='Epoching'):
+                x_val = torch.tensor(
+                            vectorizer.transform(x_val).todense()).float()
+                t = model(x_val)
+                class_ = 1
+                y = np.array(y_test) == class_
+                y_hat = np.array(t)[:, class_]
+                auroc = roc_auc_score(y, y_hat)
+                print(f"val auroc: {auroc:.3f}")
 
     yhat_test = model(x_test)
     yhat_val = model(x_val)

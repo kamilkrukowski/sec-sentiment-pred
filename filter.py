@@ -1,64 +1,109 @@
-from datetime import datetime, timedelta
-from argparse import ArgumentParser
+from math import ceil
+from datetime import datetime
+import os
 
 from tqdm.auto import tqdm
 import pandas as pd
+import numpy as np
 
-from utils import prog_read_csv
-
-HOLD_PERIOD = 90
-RAW_DATA_NAME = '8k_data_raw'
-OUTPUT_NAME = '8k_data_filtered'
-PICKLED_YFINANCE = 'TIKR_DATA.pkl'
+RAW_DATA_NAME = '8k_data_raw_long.tsv'
+OUTPUT_NAME = '8k_data_filtered.tsv'
 START_DATE = datetime.strptime('2010-01-01', '%Y-%m-%d')
 END_DATE = datetime.strptime('2022-12-31', '%Y-%m-%d')
 N_MOVING_AVG = 7
 MAX_WORD_COUNT = 8000
 
-args = ArgumentParser()
-args.add_argument('-nsamples', '-n', action='store', default=None, type=int)
-args = args.parse_args()
+# Estimate number of lines
+n_lines = 0
+with open(RAW_DATA_NAME, 'r') as f:
+    n_lines = sum([1 for _ in f])
 
+# Prepare file output for streamed appending
+if os.path.exists(OUTPUT_NAME):
+    os.system(f'rm {OUTPUT_NAME}')
+os.system(f'touch {OUTPUT_NAME}')
 
-data = prog_read_csv(f'{RAW_DATA_NAME}.tsv', sep='\t',
-                        nrows=args.nsamples, desc='Loading Data...')
-data['Date'] = pd.to_datetime(data['Date'], format="%Y%m%d")
+# We read 10k lines per iteration
+chunk = 5000.0
+total_reads = ceil(n_lines / chunk)
 
-original_len = len(data)
-data = data[data.Date >= START_DATE];
-data = data[data.Date <= END_DATE];
-new_len = len(data)
-print(f"Dropped {100*(original_len - new_len)/float(original_len):.1f}% of Text Entries due to Start Date")
+# Set up tqdm iterable
+desc = "Filtering Entries"
+itera = tqdm(pd.read_csv(RAW_DATA_NAME, sep='\t', chunksize=chunk),
+             total=total_reads, desc=desc)
 
-tqdm.pandas(desc='Calculating Word Counts')
-data['wc'] = data.text.progress_apply(lambda row: len(row.split(' ')))
+# Track metrics for filtering
+total_length = 0
+dropped_length = 0
+samples_by_year = dict()
 
-original_len = len(data)
-data = data[data.wc < MAX_WORD_COUNT].drop('wc', axis=1)
-new_len = len(data)
+# Write header ONCE
+header = True
 
-print(f"Dropped {100*(original_len - new_len)/float(original_len):.1f}% of Text Entries due to Word Count")
+for curr in itera:
 
-data.rename(
-    columns={'ubmission': 'submissions', 'FORM_TYPEs': 'FORM_TYPE'}
-    ).drop('Unnamed: 0', axis=1).to_csv(OUTPUT_NAME+'.tsv', sep='\t')
+    # Process DateTime
+    if 'Date' in curr.columns:
+        elem_ = curr.Date.iloc[0]
+        if isinstance(elem_, float):
+            elem_ = str(elem_)
+        elif isinstance(elem_, int):
+            elem_ = str(elem_)
+        elif isinstance(elem_, np.int64):
+            elem_ = str(elem_)
+        if isinstance(elem_, str):
+            if len(elem_) == 10:
+                curr['Date'] = pd.to_datetime(curr['Date'], format="%Y-%m-%d")
+            elif len(elem_) == 8:
+                curr['Date'] = pd.to_datetime(curr['Date'], format="%Y%m%d")
 
-min_date = datetime(year=min(data.Date).year, month=1, day=1)
-max_date = datetime(year=max(data.Date).year, month=12, day=31)
+    # Filter on dates
+    start_length = len(curr)
+    curr = curr[curr.Date >= START_DATE];
+    curr = curr[curr.Date <= END_DATE];
 
-out = []
-for year in range(min_date.year, max_date.year+1):
-    start_date = datetime(
-        year=year,
-        month=1,
-        day=1)
-    end_date = datetime(
-        year=year,
-        month=12,
-        day=31)
+    # Filter on max word count
+    curr['wc'] = curr.text.apply(lambda row: len(row.split(' ')))
+    curr = curr[curr.wc < MAX_WORD_COUNT].drop('wc', axis=1)
+    new_len = len(curr)
 
-    curr_ = data
-    curr_ = curr_[curr_.Date >= start_date]
-    curr_ = curr_[curr_.Date <= end_date]
+    # Track metrics
+    dropped_length += (start_length - new_len)
+    total_length += start_length
 
-    print(f"{year}: {len(curr_)}")
+    if new_len == 0:
+        continue
+
+    # Track numbers of samples by year
+    min_date = datetime(year=min(curr.Date).year, month=1, day=1)
+    max_date = datetime(year=max(curr.Date).year, month=12, day=31)
+    for year in range(min_date.year, max_date.year+1):
+        start_date = datetime(
+            year=year,
+            month=1,
+            day=1)
+        end_date = datetime(
+            year=year,
+            month=12,
+            day=31)
+
+        data_ = curr
+        data_ = data_[data_.Date >= start_date]
+        data_ = data_[data_.Date <= end_date]
+
+        if year not in samples_by_year:
+            samples_by_year[year] = 0
+        samples_by_year[year] += len(data_)
+        del data_
+
+    # Append only
+    curr.rename(
+        columns={'ubmission': 'submission', 'FORM_TYPEs': 'FORM_TYPE'}
+        ).drop('Unnamed: 0', axis=1).to_csv(
+            OUTPUT_NAME, sep='\t', mode='a', header=header, index=False)
+
+    if header:
+        header = False
+
+print(f"Dropped {100*(total_length - dropped_length)/float(total_length):.1f}% of Text Entries")
+print(samples_by_year)

@@ -18,7 +18,7 @@ def prog_read_csv(path, **read_params):
         n_lines = read_params['nrows']
     else:
         with open(path, 'r') as f:
-            n_lines = len(f.readlines())
+            n_lines = sum(1 for _ in f)
 
     total_reads = None
     if 'chunksize' not in read_params or read_params['chunksize'] < 1:
