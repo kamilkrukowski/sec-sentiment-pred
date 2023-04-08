@@ -12,7 +12,7 @@ import yfinance as yf
 from tqdm.auto import tqdm
 
 from utils import prog_read_csv
-
+import time
 
 class HistoricalYahoo(UserDict):
 
@@ -488,17 +488,36 @@ def calculate_metrics(yd, hold_period, dropna=False, silent=False):
                        desc='Generating Daily Returns')
     add_betas(yd, 365, silent=silent)
 
-def calculate_alpha(row, rf):
-    #find the rf and rm - rf that is closest to trading date
-    rf, rm_rf  = rf[rf['Date']>=row['Date']].iloc[0][["RF","Mkt-RF"]]
-    
+def calculate_jensen_alpha(row, rf):
+    # Find date in rf that is greater than or equal to trading date
+    idx = rf.index.searchsorted(row['Date'])
+    try:
+        rf, rm_rf  = rf.iloc[idx][["RF","Mkt-RF"]]
+    except IndexError:
+        return -999
     # rp is percent return
-    rp = row["Percent Return"] 
-    # alpha = rp - [rf + B * (rm - rf)]
+    rp = row["Percent Return (1)"] 
     B = row["beta"]
     if(rp == -999 or B == -999):
         return -999
+    # alpha = rp - [rf + B * (rm - rf)]
     return rp - rf + B * rm_rf
+
+
+def calculate_simple_alpha(row, rf):
+    # Find index of first date in rf that is greater than or equal to rtrading date
+    idx = rf.index.searchsorted(row['Date'])
+    try:
+        rf, rm_rf  = rf.iloc[idx][["RF","Mkt-RF"]]
+    except IndexError:
+        return -999
+    
+    # rp is percent return
+    rp = row["Percent Return (1)"] 
+
+    if(rp == -999 ):
+        return -999
+    return rp - rm_rf +rf 
 
 HOLD_PERIOD = 90
 RAW_DATA_NAME = '8k_data_filtered'
@@ -547,19 +566,20 @@ if __name__ == '__main__':
     data.rename(columns={'Outlook': 'label'}, inplace=True)
     data['Trading Date'] = data['Date']
 
-
     yd.cache()
     print("Sort by Date and Offload Results")
     data.sort_values(
         by='Date', ascending=False).to_csv(OUTPUT_NAME + '.tsv', sep='\t')
+    
 
     # adding beta
-    get_reference_data(data, yd, cols=['beta'])
-    rf_info = pd.read_csv("Risk_free_rate.csv", parse_dates = ["Date"])
+    get_reference_data(data, yd, cols=['beta', "Percent Return (1)"])
+    rf_info = pd.read_csv("Risk_free_rate.csv", parse_dates = ["Date"], index_col = "Date")
 
     # adding alpha
-    alpha = data.progress_apply(lambda x: calculate_alpha(x, rf_info), axis=1, result_type='expand')
-    data["alpha"] = pd.DataFrame(alpha)
+    data["jensen alpha"] = data.progress_apply(lambda x: calculate_jensen_alpha(x, rf_info), axis=1, result_type='expand')
+    data["simple alpha"] = data.progress_apply(lambda x: calculate_simple_alpha(x, rf_info), axis=1, result_type='expand')
+    
     print(data)
 
 
