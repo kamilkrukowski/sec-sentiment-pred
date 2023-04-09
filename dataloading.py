@@ -488,15 +488,44 @@ def calculate_metrics(yd, hold_period, dropna=False, silent=False):
                        desc='Generating Daily Returns')
     add_betas(yd, 365, silent=silent)
 
-def calculate_jensen_alpha(row, rf):
+def calculate_jensen_alpha(row, rf_date, cumsum_rf, inname = "Percent Return",  hold_period = 90):
+    """
+    Calculate Jensen's alpha using the CAPM model given a row of data, risk-free rate data, and a hold period.
+    Parameters
+    ----------
+    row : Series
+        A dictionary representing a row of data for a stock.
+    rf_date : np.ndarray
+        A numpy array representing the dates of the risk-free rate data.
+    cumsum_rf : np.ndarray
+        A numpy array representing the cumulative sum of the risk-free rate data.
+    inname : str, optional
+        The name of the column in the row dictionary that contains the percentage return data. Default is "Percent Return".
+    hold_period : int, optional
+        The number of days to hold the stock for. Default is 90.
+
+    Returns
+    -------
+    float
+        The Jensen's alpha value for the given row of data.
+
+    """
     # Find date in rf that is greater than or equal to trading date
-    idx = rf.index.searchsorted(row['Date'])
+    idx = rf_date.searchsorted(row['Date'])
+    end_idx = rf_date.searchsorted(row['Date']+ timedelta(days=hold_period-1 ) )
     try:
-        rf, rm_rf  = rf.iloc[idx][["RF","Mkt-RF"]]
+        if idx < end_idx:
+            rm_rf, rf = cumsum_rf[idx-1][:]
+            rm_rf, rf = cumsum_rf[end_idx -1][0] - rm_rf, cumsum_rf[end_idx -1][1] - rf       
+        else:
+            rm_rf, rf = cumsum_rf[idx][:]
+            rm_rf, rf =  rm_rf - cumsum_rf[idx -1 ][0], rf - cumsum_rf[idx - 1][1] 
+            
     except IndexError:
         return -999
+    
     # rp is percent return
-    rp = row["Percent Return (1)"] 
+    rp = row[inname] 
     B = row["beta"]
     if(rp == -999 or B == -999):
         return -999
@@ -504,16 +533,45 @@ def calculate_jensen_alpha(row, rf):
     return rp - rf + B * rm_rf
 
 
-def calculate_simple_alpha(row, rf):
-    # Find index of first date in rf that is greater than or equal to rtrading date
-    idx = rf.index.searchsorted(row['Date'])
+def calculate_simple_alpha(row, rf_date, cumsum_rf, inname = "Percent Return",  hold_period = 90):
+    """
+    Calculate the simple alpha using given a row of data, risk-free rate data, and a hold period.
+    Parameters
+    ----------
+    row : Series
+        pandas Series representing a row of the data.
+    rf_date : np.ndarray
+        A numpy array representing the dates of the risk-free rate data.
+    cumsum_rf : np.ndarray
+        A numpy array representing the cumulative sum of the risk-free rate data.
+    inname : str, optional
+        The name of the column in the row dictionary that contains the percentage return data. Default is "Percent Return".
+    hold_period : int, optional
+        The number of days to hold the stock for. Default is 90.
+
+    Returns
+    -------
+    float
+        The simple alpha value for the given row of data.
+
+    """
+
+    # Find date in rf that is greater than or equal to trading date
+    idx = rf_date.searchsorted(row['Date'])
+    end_idx = rf_date.searchsorted(row['Date']+ timedelta(days=hold_period-1 ) )
     try:
-        rf, rm_rf  = rf.iloc[idx][["RF","Mkt-RF"]]
+        if idx < end_idx:
+            rm_rf, rf = cumsum_rf[idx-1][:]
+            rm_rf, rf = cumsum_rf[end_idx -1][0] - rm_rf, cumsum_rf[end_idx -1][1] - rf       
+        else:
+            rm_rf, rf = cumsum_rf[idx][:]
+            rm_rf, rf =  rm_rf - cumsum_rf[idx -1 ][0], rf - cumsum_rf[idx - 1][1] 
+            
     except IndexError:
         return -999
     
     # rp is percent return
-    rp = row["Percent Return (1)"] 
+    rp = row[inname]
 
     if(rp == -999 ):
         return -999
@@ -575,11 +633,15 @@ if __name__ == '__main__':
     # adding beta
     get_reference_data(data, yd, cols=['beta', "Percent Return (1)"])
     rf_info = pd.read_csv("Risk_free_rate.csv", parse_dates = ["Date"], index_col = "Date")
+    # calculate the sum once and pass it as an argument to the function
+    rf_cumsum = rf_info.cumsum()
+    rf_date, cumsum_rf  =  rf_info.index, rf_cumsum.values.tolist()
 
     # adding alpha
-    data["jensen alpha"] = data.progress_apply(lambda x: calculate_jensen_alpha(x, rf_info), axis=1, result_type='expand')
-    data["simple alpha"] = data.progress_apply(lambda x: calculate_simple_alpha(x, rf_info), axis=1, result_type='expand')
-    
+    data["jensen alpha (90)"] = data.progress_apply(lambda x: calculate_jensen_alpha(x, rf_date, cumsum_rf,inname = "Percent Return",  hold_period = 90), axis=1, result_type='expand')
+    data["simple alpha (90)"] = data.progress_apply(lambda x: calculate_simple_alpha(x, rf_date, cumsum_rf,inname = "Percent Return",  hold_period = 90), axis=1, result_type='expand')
+    data["jensen alpha (1)"] = data.progress_apply(lambda x: calculate_jensen_alpha(x, rf_date, cumsum_rf,inname = "Percent Return (1)",  hold_period = 1), axis=1, result_type='expand')
+    data["simple alpha (1)"] = data.progress_apply(lambda x: calculate_simple_alpha(x, rf_date, cumsum_rf,inname = "Percent Return (1)",  hold_period = 1), axis=1, result_type='expand')
     print(data)
 
 
