@@ -63,6 +63,10 @@ def GET_FFNBOW_RESULTS(dftrain, dfval, dftest, threshold=0.9, out_inplace=False)
     x_test, y_test = next(iter(test_dataloader))
     x_test = torch.tensor(vectorizer.transform(x_test).todense()).float()
 
+    x_val, y_val = next(iter(val_dataloader))
+    x_val = torch.tensor(vectorizer.transform(x_test).todense()).float()
+
+    
     metrics = Metrics()
 
     for epoch in range(N_EPOCHS):
@@ -90,9 +94,11 @@ def GET_FFNBOW_RESULTS(dftrain, dfval, dftest, threshold=0.9, out_inplace=False)
                 print(f"val auroc: {auroc:.3f}")
 
     yhat_test = model(x_test)
+    yhat_val = model(x_val)
     yhat_train = model(x_train)
 
     metrics.calculate(y_test, yhat_test, split='test')
+    metrics.calculate(y_val, yhat_val, split='validation')
     metrics.calculate(y_train, yhat_train, split='train')
 
     scores = model(x_test)
