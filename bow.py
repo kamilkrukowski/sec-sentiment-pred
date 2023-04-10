@@ -1,11 +1,13 @@
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 
 from metrics import Metrics
 
 
-def GET_BOW_RESULTS(dftrain, dfval, dftest, threshold=0.9, out_inplace=False):
+def GET_BOW_RESULTS(dftrain, dfval, dftest, threshold=0.9, out_inplace=False,
+                    pbar=None, pbar_desc=None):
 
     x_train, y_train = dftrain['text'], dftrain['label']
     x_test, y_test = dftest['text'], dftest['label']

@@ -2,7 +2,8 @@ import torch.nn as nn
 import numpy as np
 import torch
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics import roc_auc_score
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
 from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 
@@ -41,15 +42,18 @@ class MyDataset(Dataset):
     return self.x.iloc[idx], self.y[idx]
 
 
-def GET_FFNBOW_RESULTS(dftrain, dfval, dftest, threshold=0.9, out_inplace=False):
+def GET_FFNBOW_RESULTS(dftrain, dfval, dftest, threshold=0.9, out_inplace=False,
+                       pbar=None, pbar_desc=None):
 
-    print("Fitting vectorizer")
-    vectorizer = TfidfVectorizer(min_df=20, max_df=0.8, max_features=20000)  # pass new_vocab if desired
+    pbar.set_description(desc=f"{pbar_desc}: Fitting Embedder")
+    vectorizer = Pipeline(
+       [('tfidf', TfidfVectorizer(min_df=20, max_df=0.8, max_features=20000))])
     vectorizer.fit(dftrain['text'])
-    print("vectorizer fit")
 
-    model = BOW(vectorizer.transform(dftest['text'].iloc[0:3]).shape[1])
-    optim = torch.optim.Adam(model.parameters(), weight_decay=2e-3)
+    pbar.set_description(desc=f"{pbar_desc}: Loading Model")
+    shape = vectorizer.transform(dftest['text'].iloc[0:3]).shape[1]
+    model = BOW(shape)
+    optim = torch.optim.Adam(model.parameters(), weight_decay=1e-2)
 
     train_dataloader = DataLoader(
                         MyDataset(dftrain), batch_size=512, shuffle=True)
@@ -61,13 +65,16 @@ def GET_FFNBOW_RESULTS(dftrain, dfval, dftest, threshold=0.9, out_inplace=False)
                         shuffle=True)
 
     x_test, y_test = next(iter(test_dataloader))
-    x_test = torch.tensor(vectorizer.transform(x_test).todense()).float()
+    x_test = torch.tensor(
+                    vectorizer.transform(x_test).todense()).float()
 
     metrics = Metrics()
 
+    len_train = len(train_dataloader)
     for epoch in range(N_EPOCHS):
-        print(f"Epoch: {epoch}")
-        for x_train, y_train in tqdm(train_dataloader, desc='Epoching'):
+        for idx, (x_train, y_train) in enumerate(train_dataloader):
+            pbar.set_description(
+               desc=f"{pbar_desc}: Epoch {epoch}: Batch {idx+1}/{len_train}")
             x_train = torch.tensor(
                         vectorizer.transform(x_train).todense()).float()
             y_hat = model(x_train)
@@ -79,24 +86,28 @@ def GET_FFNBOW_RESULTS(dftrain, dfval, dftest, threshold=0.9, out_inplace=False)
             optim.step()
 
         with torch.no_grad():
-            for x_val, y_val in tqdm(train_dataloader, desc='Epoching'):
+            loss_val = 0
+            for x_val, y_val in val_dataloader:
                 x_val = torch.tensor(
                             vectorizer.transform(x_val).todense()).float()
                 t = model(x_val)
-                class_ = 1
-                y = np.array(y_test) == class_
-                y_hat = np.array(t)[:, class_]
-                auroc = roc_auc_score(y, y_hat)
-                print(f"val auroc: {auroc:.3f}")
+                loss_val += torch.nn.functional.cross_entropy(
+                                    t, y_val, reduction='mean').detach().numpy()
+            loss_val = loss_val / len(val_dataloader)
 
-    yhat_test = model(x_test)
-    yhat_train = model(x_train)
+        met_ = loss_val
+        pbar.set_description(desc=f"{pbar_desc}: Loss={met_:.3f}:")
+    metrics['loss_val'] = loss_val
+    metrics['train_loss'] = loss.detach().numpy().item()
+
+    yhat_test = model(x_test).detach().numpy()
+    yhat_train = model(x_train).detach().numpy()
 
     metrics.calculate(y_test, yhat_test, split='test')
     metrics.calculate(y_train, yhat_train, split='train')
 
     scores = model(x_test)
-    pos_scores = scores[:, 1]
+    pos_scores = scores[:, 1].detach().numpy()
     preds = pos_scores > np.percentile(pos_scores, int(threshold*100))
 
     out = dftest
