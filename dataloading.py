@@ -500,7 +500,7 @@ def calculate_jensen_alpha(row, rf_date, cumsum_rf, inname = "Percent Return",  
     cumsum_rf : np.ndarray
         A numpy array representing the cumulative sum of the risk-free rate data.
     inname : str, optional
-        The name of the column in the row dictionary that contains the percentage return data. Default is "Percent Return".
+        The name of the column in the row dataframe that contains the percentage return data. Default is "Percent Return".
     hold_period : int, optional
         The number of days to hold the stock for. Default is 90.
 
@@ -545,7 +545,7 @@ def calculate_simple_alpha(row, rf_date, cumsum_rf, inname = "Percent Return",  
     cumsum_rf : np.ndarray
         A numpy array representing the cumulative sum of the risk-free rate data.
     inname : str, optional
-        The name of the column in the row dictionary that contains the percentage return data. Default is "Percent Return".
+        The name of the column in the row dataframe that contains the percentage return data. Default is "Percent Return".
     hold_period : int, optional
         The number of days to hold the stock for. Default is 90.
 
