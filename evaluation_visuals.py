@@ -36,7 +36,7 @@ def boxplot(data, metric_name, save_name=None):
     ax.set_xticklabels(auroc_values.keys())
     ax.set_xlabel('Year')
     ax.set_ylabel('AUROC')
-    plt.show()
+    # plt.show()
     if save_name:
         plt.savefig(f'figs/{save_name}_boxplot.png')
     else:
@@ -63,7 +63,6 @@ def plot_roc(data, save_name = None):
     plt.tight_layout()
     if save_name:
         plt.savefig(f'figs/{save_name}_ROC.png')
-        print(save_name)
     else:
         plt.savefig('figs/ROC.png')
 
