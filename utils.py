@@ -138,64 +138,13 @@ class ChronoYearly():
         val_test = out[out.Date > boundary]
         val_test = val_test.sort_values(by='Date',ascending=True)
 
-        val = val_test[:len(val_test)//4]
-        test = val_test[len(val_test)//4:]
+        val = val_test[val_test['Date'] < datetime(year=min(val_test.Date).year, month=4, day=1)]
+        test = val_test[val_test['Date'] >= datetime(year=min(val_test.Date).year, month=4, day=1)]
     
         self._idx += 1
         
         return train, val, test
 
-
-
-class ChronoQuarterly():
-    """Cross-validation data split generator. Generates 1-quarter period test set splits."""
-
-    def __init__(self, df, period_length=90, periods_to_test=5, verbose=True):
-
-        self._min_date = datetime(year=min(df.Date).year, month=min(df.Date).month, day=1)
-        self._max_date = datetime(year=max(df.Date).year, month=max(df.Date).month, day=1)
-        number_periods = (self._max_date.year - self._min_date.year) * 4 + (self._max_date.month - self._min_date.month) // 3 + 1
-
-        assert periods_to_test < number_periods, 'Not enough historical data'
-
-        if verbose:
-            print(f"Across {number_periods} quarters, "
-                  f"train on {number_periods-periods_to_test} "
-                  f"with 1-quarter duration testing on {periods_to_test} "
-                  "different quarters")
-
-        self.df = df
-        self._idx = 0
-        self.periods_to_test = periods_to_test - 1
-        self.period_length = period_length
-
-    def __iter__(self):
-        self._idx = 0
-        return self
-
-    def __next__(self):
-        if self._idx == self.periods_to_test:
-            self._idx = 0
-            raise StopIteration
-        quarter_idx = (self._min_date.month + self._idx - 1) // 3
-        start_date = datetime(
-            year=self._min_date.year + quarter_idx // 4,
-            month=((quarter_idx % 4) * 3) + 1,
-            day=1)
-        end_date = start_date + timedelta(days=90)
-        generate_data_splits = end_date - timedelta(self.period_length)
-
-        out = self.df
-        out = out[out.Date >= start_date]
-        out = out[out.Date < end_date]
-
-        boundary = generate_data_splits
-        train = out[out.Date <= boundary]
-        test = out[out.Date > boundary]
-
-        self._idx += 1
-
-        return train, test
 
 
 
@@ -204,9 +153,6 @@ def generate_data_splits(df, strategy='chronological_yearly', periods_to_test=5,
 
     if strategy == 'chronological_yearly':
         return ChronoYearly(
-            df, period_length=period_length, periods_to_test=periods_to_test, verbose=verbose)
-    if strategy == 'chronological_quarterly':
-        return ChronoQuarterly(
             df, period_length=period_length, periods_to_test=periods_to_test, verbose=verbose)
 
 def subsample_yearly(df, n=1000):
