@@ -483,10 +483,33 @@ def calculate_metrics(yd, hold_period, dropna=False, silent=False):
 
     yd.map(lambda x: set_without_period(x, keyann, keyperc))
 
+
     # Daily Beta Calculation
     add_percent_return(yd, hold_period=1, silent=silent,
                        desc='Generating Daily Returns')
     add_betas(yd, 365, silent=silent)
+
+
+def add_alphas(yd, window, risk_free_rate_file ="Risk_free_rate.csv", hold_period=1, start_date=None, silent=False):
+    """
+    Parameters
+    ----------
+    window: int
+        The historical length in days for beta calculation. Typical 1Y or 5Y
+    """
+    # Add missing Percent Return
+    filtered = yd.filter(
+        lambda x: f'simple alpha (90)' not in x.columns)
+    # Loading the risk free rate information
+    rf_info = pd.read_csv("Risk_free_rate.csv", parse_dates = ["Date"], index_col = "Date")
+
+    # calculate the product once and pass it as an argument to the function
+    rf_cumprod = (1+rf_info/100).cumprod() 
+    rf_date, cumprod_rf  =  rf_info.index, rf_cumprod.values.tolist()
+    yd.progress_map(lambda x: add_alpha(x, ref, window=window,
+                                       hold_period=hold_period, start_date=start_date, silent=True),
+                    keys=filtered, desc='Generating Simple Alpha', bar=not silent)
+
 
 def calculate_jensen_alpha(row, rf_date, cumprod_rf, inname = "Percent Return",  hold_period = 90):
     """
@@ -516,23 +539,50 @@ def calculate_jensen_alpha(row, rf_date, cumprod_rf, inname = "Percent Return", 
 
     try:
         if idx < end_idx:
-            rm_rf, rf = cumprod_rf[idx-1][:]
-            
-            rm_rf, rf = cumprod_rf[end_idx -1][0] / rm_rf -1, cumprod_rf[end_idx -1][1] / rf -1
+            rf = cumprod_rf[end_idx -1][1] / cumprod_rf[idx-1][1] -1
+            rm_rf = row["sp Percent"] - rf
+           
         else:
-            rm_rf, rf = cumprod_rf[idx][:]
-            rm_rf, rf =  rm_rf / cumprod_rf[idx -1 ][0] -1 , rf / cumprod_rf[idx - 1][1] -1
+            rf = cumprod_rf[idx][1] / cumprod_rf[idx - 1][1] -1
+            rm_rf =  row["sp Percent"] - rf
     except IndexError:
-        return -999
+        return None
     
     # rp is percent return
     rp = row[inname] 
     B = row["beta"]
     if(rp == -999 or B == -999):
-        return -999
+        return None
     #print(rp,rf,B, rm_rf)
-    return rp - rf + B * rm_rf
+    return rp - rf - B * rm_rf
 
+
+def jansen_alpha(start_date,rf_date,cumprod_rf,rp, rm , b):
+    # Find date in rf that is greater than or equal to trading date
+    idx = rf_date.searchsorted(start_date)
+    end_idx = rf_date.searchsorted(start_date+ timedelta(days= 365 ) )
+    try:
+        if idx < end_idx:
+            rf = cumprod_rf[end_idx -1][1] / cumprod_rf[idx-1][1] -1
+            rm_rf = rm - rf
+           
+        else:
+            rf = cumprod_rf[idx][1] / cumprod_rf[idx - 1][1] -1
+            rm_rf =  rm - rf
+    except IndexError:
+        return None
+    
+    # rp is percent return
+    # b is beta
+    if(rp == -999 or B == -999):
+        return None
+    #print(rp,rf,B, rm_rf)
+    return rp - rf - B * rm_rf
+
+
+def simple_alpha(rp,rm):
+    
+    return rp -rm
 
 def calculate_simple_alpha(row, rf_date, cumprod_rf, inname = "Percent Return",  hold_period = 90):
     """
@@ -569,13 +619,13 @@ def calculate_simple_alpha(row, rf_date, cumprod_rf, inname = "Percent Return", 
             rm_rf, rf = cumprod_rf[idx][:]
             rm_rf, rf =  rm_rf / cumprod_rf[idx -1 ][0] -1 , rf / cumprod_rf[idx - 1][1] -1
     except IndexError:
-        return -999
+        return None
     
     # rp is percent return
     rp = row[inname]
 
     if(rp == -999 ):
-        return -999
+        return None
     return rp - rm_rf +rf 
 
 HOLD_PERIOD = 90
@@ -626,17 +676,17 @@ if __name__ == '__main__':
     data['Trading Date'] = data['Date']
 
     yd.cache()
-    print("Sort by Date and Offload Results")
-    data.sort_values(
-        by='Date', ascending=False).to_csv(OUTPUT_NAME + '.tsv', sep='\t')
+    #print("Sort by Date and Offload Results")
+    #data.sort_values(
+     #   by='Date', ascending=False).to_csv(OUTPUT_NAME + '.tsv', sep='\t')
     
 
     # adding beta
-    get_reference_data(data, yd, cols=['beta', "Percent Return (1)"])
-    rf_info = pd.read_csv("Risk_free_rate.csv", parse_dates = ["Date"], index_col = "Date")
+    #get_reference_data(data, yd, cols=['beta', "Percent Return (1)"])
+    #rf_info = pd.read_csv("Risk_free_rate.csv", parse_dates = ["Date"], index_col = "Date")
     # calculate the product once and pass it as an argument to the function
-    rf_cumprod = (1+rf_info/100).cumprod()
-    rf_date, cumprod_rf  =  rf_info.index, rf_cumprod.values.tolist()
+    #rf_cumprod = (1+rf_info/100).cumprod()
+    #rf_date, cumprod_rf  =  rf_info.index, rf_cumprod.values.tolist()
 
     # adding alpha
     data["jensen alpha (90)"] = data.progress_apply(lambda x: calculate_jensen_alpha(x, rf_date, cumprod_rf,inname = "Percent Return",  hold_period = 90), axis=1, result_type='expand')
