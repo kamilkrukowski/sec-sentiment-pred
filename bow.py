@@ -5,7 +5,6 @@ from sklearn.linear_model import LogisticRegression
 from metrics import Metrics
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
-
 def GET_BOW_RESULTS(dftrain, dfval, dftest, threshold=0.9, out_inplace=False):
 
     x_train, y_train = dftrain['text'], dftrain['label']
@@ -47,7 +46,7 @@ def GET_BOW_RESULTS(dftrain, dfval, dftest, threshold=0.9, out_inplace=False):
     return out, metrics
 
 
-def GET_DECISION_TREE_RESULTS(dftrain, dfval, dftest, max_depth=2, out_inplace=False, is_decision_tree = True):
+def GET_DECISION_TREE_RESULTS(dftrain, dfval, dftest, max_depth=2, threshold=0.9,out_inplace=False, is_decision_tree = True):
 
     x_train, y_train = dftrain['text'], dftrain['label']
     x_test, y_test = dftest['text'], dftest['label']
