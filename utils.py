@@ -18,7 +18,7 @@ def prog_read_csv(path, **read_params):
         n_lines = read_params['nrows']
     else:
         with open(path, 'r') as f:
-            n_lines = sum(1 for _ in f)
+            n_lines = len(f.readlines())
 
     total_reads = None
     if 'chunksize' not in read_params or read_params['chunksize'] < 1:
@@ -126,26 +126,18 @@ class ChronoYearly():
             self.periods_to_test + self._idx + 1,
             month=12,
             day=31)
-        generate_data_splits = end_date - timedelta(self.period_length)
+        boundary = end_date - timedelta(self.period_length)
 
         out = self.df
         out = out[out.Date >= start_date]
         out = out[out.Date <= end_date]
 
-        boundary = generate_data_splits
         train = out[out.Date <= boundary]
+        test = out[out.Date > boundary]
 
-        val_test = out[out.Date > boundary]
-        val_test = val_test.sort_values(by='Date',ascending=True)
-
-        val = val_test[val_test['Date'] < datetime(year=min(val_test.Date).year, month=4, day=1)]
-        test = val_test[val_test['Date'] >= datetime(year=min(val_test.Date).year, month=4, day=1)]
-    
         self._idx += 1
-        
-        return train, val, test
-
-
+    
+        return train, test
 
 
 def generate_data_splits(df, strategy='chronological_yearly', periods_to_test=5,
@@ -178,6 +170,3 @@ def subsample_yearly(df, n=1000):
         out.append(curr_.sample(n_).copy())
 
     return pd.concat(out, axis=0)
-
-
-
