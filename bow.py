@@ -65,13 +65,7 @@ def GET_DECISION_TREE_RESULTS(
     x_test = vectorizer.transform(x_test)
     x_val = vectorizer.transform(x_val)
 
-    clf = RandomForestClassifier(
-        max_depth= max_depth,
-        random_state=0, 
-        n_estimators =  n_estimators,
-        max_features=  max_features,
-        max_leaf_nodes =max_leaf_nodes,
-        min_samples_split = min_samples_split).fit(x_train, y_train)
+    
     if(is_decision_tree == True):
         clf = DecisionTreeClassifier(
             max_depth= max_depth,
@@ -80,6 +74,14 @@ def GET_DECISION_TREE_RESULTS(
             max_leaf_nodes =max_leaf_nodes,
             splitter = splitter,
             min_samples_split = min_samples_split).fit(x_train, y_train)
+    else:
+        clf = RandomForestClassifier(
+        max_depth= max_depth,
+        random_state=0, 
+        n_estimators =  n_estimators,
+        max_features=  max_features,
+        max_leaf_nodes =max_leaf_nodes,
+        min_samples_split = min_samples_split).fit(x_train, y_train)
         
 
     yhat_test = clf.predict_proba(x_test)
