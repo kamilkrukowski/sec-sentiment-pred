@@ -608,6 +608,8 @@ def calculate_simple_alpha(row, rf_date, cumprod_rf, inname = "Percent Return", 
     """
 
     # Find date in rf that is greater than or equal to trading date
+
+    '''
     idx = rf_date.searchsorted(row['Date'])
     end_idx = rf_date.searchsorted(row['Date']+ timedelta(days=hold_period-1 ) )
     try:
@@ -620,13 +622,13 @@ def calculate_simple_alpha(row, rf_date, cumprod_rf, inname = "Percent Return", 
             rm_rf, rf =  rm_rf / cumprod_rf[idx -1 ][0] -1 , rf / cumprod_rf[idx - 1][1] -1
     except IndexError:
         return None
-    
+    '''
     # rp is percent return
     rp = row[inname]
-
-    if(rp == -999 ):
+    rm = row['sp Percent']
+    if(rp == -999 or rm == -999):
         return None
-    return rp - rm_rf +rf 
+    return rp - rmx
 
 HOLD_PERIOD = 90
 RAW_DATA_NAME = '8k_data_filtered'
