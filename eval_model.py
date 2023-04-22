@@ -38,15 +38,17 @@ strategy = 'chronological_yearly'
 model = GET_BOW_RESULTS
 
 model = GET_DECISION_TREE_RESULTS
-model_savepath = f'RandomForest_test1'
-max_depth = 80
+max_depth = 55
 n_estimators = 10
 max_features = None
 splitter = "random"
-min_samples_split = 50
-min_df = 0.2
+min_samples_split = 2
+min_df = 20
 max_df = 0.8
 stop_words = "english"
+is_decision_tree = True
+
+model_savepath = f'DecisionTree_{max_depth}'
 
 # model = GET_FFNBOW_RESULTS
 all_metrics = []
@@ -74,7 +76,7 @@ for idx, (traindf, validationdf, testdf) in enumerate(
         out, metrics = model(
             traindf_k, validationdf, testdf,
             max_depth=max_depth, threshold=0.9,
-            out_inplace=False, is_decision_tree = False,
+            out_inplace=False, is_decision_tree = is_decision_tree,
             n_estimators = n_estimators, max_features= max_features, 
             max_leaf_nodes =None, min_samples_split = min_samples_split,
             splitter = splitter, min_df = min_df,
