@@ -66,10 +66,10 @@ def plot_roc(data, save_name = None):
     else:
         plt.savefig('figs/ROC.png')
 
-
-df = pd.read_csv('model_outputs/outputs_test1.csv')
+save_name = "RandomForest_50"
+df = pd.read_csv('model_outputs/outputs_RandomForest_50.csv')
 data = build_metrics(df)
 
-boxplot(data, "test_auroc", save_name="big_dataset")
+boxplot(data, "test_auroc", save_name=save_name)
 
-plot_roc(data, save_name ="big_dataset")
+plot_roc(data, save_name =save_name)
