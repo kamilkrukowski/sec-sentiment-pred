@@ -62,8 +62,6 @@ dl.add_has_filing(data, yd)  # Identify subset with filings
 yd.cache()
 data['Release Date'] = data['Date']
 
-print(data.columns)
-
 # adding annual return information from TIKR_DATA.pkl
 dl.get_reference_data(data, yd, cols=[
          'Outlook', 
