@@ -41,14 +41,15 @@ def sp_percent(data,yd,hold_period,desc='Looking Up for S&P', backfill=True, lea
     df = yd["^GSPC"]
     df.set_index('index', inplace=True)
 
-INPUT_FILE = 'outputs_19.csv'
+#INPUT_FILE = 'outputs_19.csv'
+INPUT_FILE = 'model_outputs/outputs_DecisionTree_50.csv'
 PICKLED_YFINANCE = 'TIKR_DATA.pkl'
-OUTPUT_FILE = 'outputs_19_with_alpha90_3.csv'
-HOLD_PERIOD = 7
+OUTPUT_FILE = 'model_outputs/outputs_DecisionTree_50_alpha90.csv'
+HOLD_PERIOD = 90
 
 data = pd.read_csv(INPUT_FILE, index_col = 0, parse_dates = ["Date"])
-split_dfs = np.array_split(data, len(data) // 973180 )
-data = split_dfs[17]
+#split_dfs = np.array_split(data, len(data) // 973180 )
+#data = split_dfs[17]
 # filter out prediction  == 0
 data = data[data.pred== 1]
 yd = dl.HistoricalYahoo.load(PICKLED_YFINANCE)
@@ -58,15 +59,19 @@ dl.calculate_metrics(yd, hold_period=HOLD_PERIOD, dropna=True)
 
 dl.add_has_filing(data, yd)  # Identify subset with filings
 #data = data[data.tikr == "ABBV"]
-
+yd.cache()
 data['Release Date'] = data['Date']
+
+print(data.columns)
 
 # adding annual return information from TIKR_DATA.pkl
 dl.get_reference_data(data, yd, cols=[
-        'Date', 'Outlook', 'Percent Return', 'Annual Return', 'beta'],
+         'Outlook', 
+        'Percent Return', 'Annual Return',
+         'beta','sp Percent', 'sp Annual'],
         backfill=False)
 
-sp_percent(data,yd,hold_period= HOLD_PERIOD)
+#sp_percent(data,yd,hold_period= HOLD_PERIOD)
 # Loading the risk free rate information
 rf_info = pd.read_csv("Risk_free_rate.csv", parse_dates = ["Date"], index_col = "Date")
 
