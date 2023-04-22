@@ -126,18 +126,26 @@ class ChronoYearly():
             self.periods_to_test + self._idx + 1,
             month=12,
             day=31)
-        boundary = end_date - timedelta(self.period_length)
+        generate_data_splits = end_date - timedelta(self.period_length)
 
         out = self.df
         out = out[out.Date >= start_date]
         out = out[out.Date <= end_date]
 
+        boundary = generate_data_splits
         train = out[out.Date <= boundary]
-        test = out[out.Date > boundary]
 
-        self._idx += 1
+        val_test = out[out.Date > boundary]
+        val_test = val_test.sort_values(by='Date',ascending=True)
+
+        val = val_test[val_test['Date'] < datetime(year=min(val_test.Date).year, month=4, day=1)]
+        test = val_test[val_test['Date'] >= datetime(year=min(val_test.Date).year, month=4, day=1)]
     
-        return train, test
+        self._idx += 1
+        
+        return train, val, test
+
+
 
 
 def generate_data_splits(df, strategy='chronological_yearly', periods_to_test=5,
