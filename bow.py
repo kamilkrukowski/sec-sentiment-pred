@@ -46,21 +46,40 @@ def GET_BOW_RESULTS(dftrain, dfval, dftest, threshold=0.9, out_inplace=False):
     return out, metrics
 
 
-def GET_DECISION_TREE_RESULTS(dftrain, dfval, dftest, max_depth=2, threshold=0.9,out_inplace=False, is_decision_tree = True):
+def GET_DECISION_TREE_RESULTS(
+    dftrain, dfval, dftest,
+     max_depth=None, threshold=0.9,
+     out_inplace=False, is_decision_tree = True,
+     n_estimators = 10, max_features= None, 
+     max_leaf_nodes =None, splitter = "random",
+      min_samples_split = 2, min_df = 20,
+      max_df = 0.8, stop_words = "english"):
 
     x_train, y_train = dftrain['text'], dftrain['label']
     x_test, y_test = dftest['text'], dftest['label']
     x_val, y_val = dfval['text'], dfval['label']
 
-    vectorizer = TfidfVectorizer(min_df=20, max_df=0.8)
+    vectorizer = TfidfVectorizer(min_df=min_df , max_df=max_df, stop_words = stop_words)
 
     x_train = vectorizer.fit_transform(x_train)
     x_test = vectorizer.transform(x_test)
     x_val = vectorizer.transform(x_val)
 
-    clf = RandomForestClassifier(max_depth= max_depth, random_state=0).fit(x_train, y_train)
+    clf = RandomForestClassifier(
+        max_depth= max_depth,
+        random_state=0, 
+        n_estimators =  n_estimators,
+        max_features=  max_features,
+        max_leaf_nodes =max_leaf_nodes,
+        min_samples_split = min_samples_split).fit(x_train, y_train)
     if(is_decision_tree == True):
-        clf = DecisionTreeClassifier(max_depth= max_depth,random_state=0).fit(x_train, y_train)
+        clf = DecisionTreeClassifier(
+            max_depth= max_depth,
+            random_state=0,
+            max_features=  max_features,
+            max_leaf_nodes =max_leaf_nodes,
+            splitter = splitter,
+            min_samples_split = min_samples_split).fit(x_train, y_train)
         
 
     yhat_test = clf.predict_proba(x_test)
